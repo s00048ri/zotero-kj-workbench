@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type Card, type LinkedCard } from "../lib/api";
+import MyNote from "./MyNote";
 
 /* Whose words these are is carried by the ground and the typeface, not by a
  * label — the label only confirms what the eye already read. */
@@ -27,10 +28,22 @@ function LinkedIdea({ idea }: { idea: LinkedCard }) {
   );
 }
 
-export default function CardView({ card, projectId }: { card: Card; projectId: string }) {
+export default function CardView({
+  card,
+  projectId,
+  selected,
+  onSelect,
+}: {
+  card: Card;
+  projectId: string;
+  selected?: boolean;
+  onSelect?: (id: string, selected: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [writing, setWriting] = useState(false);
   const [label, setLabel] = useState(card.human_label ?? "");
+  const hasMyNote = card.linked_ideas.some((i) => i.origin === "annotation_comment");
 
   const mine = card.kind === "idea";
   const patch = useMutation({
@@ -48,10 +61,28 @@ export default function CardView({ card, projectId }: { card: Card; projectId: s
       ].join(" ")}
     >
       <div className="card-head">
+        {onSelect && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            aria-label={`Select ${card.human_id}`}
+            onChange={(e) => onSelect(card.id, e.target.checked)}
+          />
+        )}
         <span className="id">{card.human_id}</span>
         <Voice mine={mine} />
         {card.color && <span className="swatch" style={{ background: card.color }} />}
+        {card.zotero_note_key && (
+          <span className="meta" title="This card is a note in Zotero">
+            {card.kj_path ? card.kj_path.split("/").pop() : "in Inbox"}
+          </span>
+        )}
         <span className="actions">
+          {!mine && (
+            <button className="button quiet" onClick={() => setWriting((v) => !v)}>
+              {hasMyNote ? "Edit my note" : "Add my note"}
+            </button>
+          )}
           <button className="button quiet" onClick={() => setEditing((v) => !v)}>
             {card.human_label ? "Edit heading" : "Add a heading"}
           </button>
@@ -98,6 +129,10 @@ export default function CardView({ card, projectId }: { card: Card; projectId: s
         <blockquote className="quote" lang={isJapanese(card.text) ? "ja" : undefined}>
           {card.text}
         </blockquote>
+      )}
+
+      {writing && (
+        <MyNote card={card} projectId={projectId} onDone={() => setWriting(false)} />
       )}
 
       <div className="card-foot">

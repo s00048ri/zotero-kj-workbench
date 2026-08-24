@@ -75,6 +75,10 @@ def _rows(conn: sqlite3.Connection, project_id: str, column: str) -> list[dict[s
         for r in conn.execute(
             CARD_SELECT
             + f" WHERE c.project_id = ? AND c.kind != 'image' AND c.status = 'active' "
+            # A group's label is a sentence *about* that group. Clustering it
+            # with its own members would be circular: it would always land in
+            # the group it describes and inflate the agreement.
+            f"AND c.origin != 'group_label' "
             f"AND c.{column} IS NOT NULL AND LENGTH(c.text) > ? "
             f"ORDER BY c.{column}, c.human_id",
             (project_id, MIN_TEXT),

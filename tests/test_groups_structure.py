@@ -251,3 +251,16 @@ def test_the_comparison_prefers_the_groups_you_made(project):
     result = compare(conn, pid)
     assert result.basis == "kj_path"
     assert "groups you made" in result.basis_label
+
+
+def test_a_group_label_is_not_clustered_with_its_own_group(project):
+    """It is a sentence about that group, so counting it would be circular."""
+    conn, pid = project
+    conn.execute("DELETE FROM card")
+    bulk_cards(conn, pid, "P/_KJ/Oversight", OVERSIGHT, 0)
+    bulk_cards(conn, pid, "P/_KJ/Capacity", CAPACITY, 100)
+    before = compare(conn, pid).cards_used
+
+    save_label(conn, pid, "P/_KJ/Oversight", "Oversight is organisational.")
+    save_label(conn, pid, "P/_KJ/Capacity", "Capacity is fiscal.")
+    assert compare(conn, pid).cards_used == before

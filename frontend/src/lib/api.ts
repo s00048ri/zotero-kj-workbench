@@ -121,13 +121,115 @@ export interface Facets {
   groups: FacetValue[];
 }
 
+export interface WritePermission {
+  available: boolean;
+  remembered: boolean;
+  message: string;
+}
+
+export interface PendingCards {
+  count: number;
+  by_kind: Record<string, number>;
+}
+
+export interface MaterializeResult {
+  batch_id: string | null;
+  created: number;
+  destinations: Record<string, number>;
+  failures: { human_id: string; error: string }[];
+  dialogs_shown: number;
+  dry_run: boolean;
+  preview: {
+    human_id: string;
+    kind: string;
+    destination: string;
+    citation: string;
+    text: string;
+  }[];
+}
+
+export interface WriteBatch {
+  id: string;
+  kind: string;
+  created_at: string;
+  reverted_at: string | null;
+  notes: number;
+  failures: number;
+}
+
+export interface GroupCard {
+  id: string;
+  human_id: string;
+  kind: string;
+  origin: string;
+  text: string;
+  citation: string;
+  locator_estimated: boolean;
+  color: string | null;
+}
+
+export interface Group {
+  path: string;
+  name: string;
+  collection_key: string | null;
+  size: number;
+  least_alike: [string, string] | null;
+  label: { id: string; human_id: string; text: string; in_zotero: boolean } | null;
+  cards: GroupCard[];
+}
+
+export interface GroupsPage {
+  groups: Group[];
+  summary: {
+    groups: number;
+    labelled: number;
+    cards_grouped: number;
+    ungrouped: number;
+  };
+}
+
+export interface Structure {
+  basis: string;
+  basis_label: string;
+  cards_used: number;
+  groups: string[];
+  k: number;
+  ari: number;
+  nmi: number;
+  contingency: number[][];
+  clusters: {
+    index: number;
+    size: number;
+    mostly: string;
+    nearest: { human_id: string; kind: string; text: string; citation: string }[];
+  }[];
+  misfits: {
+    id: string;
+    human_id: string;
+    kind: string;
+    text: string;
+    citation: string;
+    filed_in: string;
+    clusters_with: string;
+  }[];
+  degenerate: boolean;
+  warning: string | null;
+}
+
 export class ApiError extends Error {
   remedy: string | null;
   status: number;
-  constructor(message: string, status: number, remedy: string | null = null) {
+  detail: unknown;
+  constructor(
+    message: string,
+    status: number,
+    remedy: string | null = null,
+    detail: unknown = null,
+  ) {
     super(message);
     this.status = status;
     this.remedy = remedy;
+    this.detail = detail;
   }
 }
 
@@ -139,13 +241,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const text = await response.text();
   const body = text ? JSON.parse(text) : null;
   if (!response.ok) {
+    const detail = body?.detail;
     const message =
-      body?.message ?? body?.detail ?? response.statusText ?? "Request failed";
-    throw new ApiError(
-      typeof message === "string" ? message : JSON.stringify(message),
-      response.status,
-      body?.remedy ?? null,
-    );
+      body?.message ??
+      (typeof detail === "string" ? detail : detail?.message) ??
+      response.statusText ??
+      "Request failed";
+    throw new ApiError(String(message), response.status, body?.remedy ?? null, detail);
   }
   return body as T;
 }
@@ -181,4 +283,52 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+
+  myNote: (
+    projectId: string,
+    cardId: string,
+    body: { text: string; push_to_zotero?: boolean; overwrite?: boolean },
+  ) =>
+    request<Card>(`/api/projects/${projectId}/cards/${cardId}/my-note`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
+  writePermission: () => request<WritePermission>("/api/write-permission"),
+  authorize: () =>
+    request<WritePermission>("/api/write-permission", { method: "POST" }),
+  forgetPermission: () =>
+    request<WritePermission>("/api/write-permission", { method: "DELETE" }),
+
+  pending: (projectId: string) =>
+    request<PendingCards>(`/api/projects/${projectId}/pending`),
+  createNotes: (
+    projectId: string,
+    body: { card_ids?: string[] | null; kinds?: string[]; dry_run?: boolean },
+  ) =>
+    request<MaterializeResult>(`/api/projects/${projectId}/notes`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  batches: (projectId: string) =>
+    request<WriteBatch[]>(`/api/projects/${projectId}/batches`),
+  revertBatch: (projectId: string, batchId: string) =>
+    request<{ deleted: number; already_gone: number; failures: string[] }>(
+      `/api/projects/${projectId}/batches/${batchId}/revert`,
+      { method: "POST" },
+    ),
+
+  groups: (projectId: string) => request<GroupsPage>(`/api/projects/${projectId}/groups`),
+  saveLabel: (projectId: string, body: { path: string; label: string; note?: string }) =>
+    request<{ id: string; human_id: string; text: string }>(
+      `/api/projects/${projectId}/groups/label`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ),
+  pushLabels: (projectId: string) =>
+    request<MaterializeResult>(`/api/projects/${projectId}/groups/push`, {
+      method: "POST",
+    }),
+
+  structure: (projectId: string, params: { basis?: string; k?: number } = {}) =>
+    request<Structure>(`/api/projects/${projectId}/structure${query(params)}`),
 };

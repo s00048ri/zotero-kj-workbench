@@ -57,13 +57,48 @@ src/zkj/importer.py annotations and notes become cards, idempotently
 src/zkj/locators.py where a passage is — and never an invented page
 src/zkj/text.py     repairing extracted text without altering it
 src/zkj/cards.py    filters, search, and the counts worth showing
+src/zkj/writes.py   holding a Zotero write key inside Zotero's rules
+src/zkj/materialize.py  cards into notes, and taking a batch back
+src/zkj/annotate.py your own note on a passage, kept in step with Zotero
+src/zkj/groups.py   the collections you filed cards into, and their labels
+src/zkj/structure.py  your outline against your evidence
 frontend/           React + TypeScript; builds into src/zkj/api/web/dist
 ```
 
 ## Where the database lives
 
 `~/Library/Application Support/zkj/zkj.sqlite3` on macOS, or wherever `ZKJ_DB`
-points. Nothing is written into your Zotero library at this milestone.
+points.
+
+## What it writes into Zotero
+
+Only when you ask, and never a highlighted passage:
+
+* a standalone note for each card you choose, in `_KJ/Inbox` under your project
+  collection — because a Zotero annotation cannot belong to a collection, and a
+  note can, which is what lets you drag it into a group;
+* the `_KJ` and `_KJ/Inbox` collections themselves, if they do not exist;
+* a note for each group label, filed in the collection it names;
+* your own comment on a highlight, if you write one — never over an existing
+  comment without being asked twice.
+
+Every batch of notes is recorded and can be taken back whole, from the Project
+screen or straight after writing them.
+
+## The loop
+
+```
+Zotero:    read, highlight, comment
+Workbench: import → cards
+Workbench: create notes in Zotero
+Zotero:    drag notes into subcollections     ← the grouping happens HERE
+Workbench: re-read → groups recovered
+Workbench: write one proposition per group
+Workbench: push labels back to Zotero
+Workbench: structure comparison → cards worth re-reading
+```
+
+Every step is re-runnable. Re-reading never destroys work.
 
 ## Milestones
 
@@ -71,8 +106,8 @@ points. Nothing is written into your Zotero library at this milestone.
 |---|---|---|
 | M1 | Zotero adapter and status page | **done** |
 | M2 | Import, cards, locators, Cards screen | **done** |
-| M3 | Notes into Zotero | next |
-| M4 | Placement read-back and Groups | |
-| M5 | Add my note | |
-| M6 | Structure comparison | |
-| M7 | Compose and prompt export | |
+| M3 | Notes into Zotero | **done** |
+| M4 | Placement read-back and Groups | **done** |
+| M5 | Add my note | **done** |
+| M6 | Structure comparison | **done** |
+| M7 | Compose and prompt export | next |

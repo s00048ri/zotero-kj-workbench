@@ -4,8 +4,10 @@ import { api } from "./lib/api";
 import Connect from "./screens/Connect";
 import ProjectScreen from "./screens/Project";
 import Cards from "./screens/Cards";
+import Groups from "./screens/Groups";
+import Structure from "./screens/Structure";
 
-type Screen = "connect" | "project" | "cards";
+type Screen = "connect" | "project" | "cards" | "groups" | "structure";
 
 const LAST_PROJECT = "zkj.project";
 
@@ -62,6 +64,22 @@ export default function App() {
           </button>
           <button
             className="tab"
+            aria-current={screen === "groups" ? "page" : undefined}
+            disabled={!project}
+            onClick={() => setScreen("groups")}
+          >
+            Groups
+          </button>
+          <button
+            className="tab"
+            aria-current={screen === "structure" ? "page" : undefined}
+            disabled={!project}
+            onClick={() => setScreen("structure")}
+          >
+            Structure
+          </button>
+          <button
+            className="tab"
             aria-current={screen === "connect" ? "page" : undefined}
             onClick={() => setScreen("connect")}
           >
@@ -96,6 +114,10 @@ export default function App() {
           ) : (
             <p className="spinner">Opening the project…</p>
           ))}
+        {screen === "groups" && project && (
+          <Groups project={project} onGoToCards={() => setScreen("cards")} />
+        )}
+        {screen === "structure" && project && <Structure project={project} />}
       </main>
     </div>
   );

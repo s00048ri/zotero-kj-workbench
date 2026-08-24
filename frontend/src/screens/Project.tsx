@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api, type Collection, type Project } from "../lib/api";
+import Batches from "../components/Batches";
 
 interface Props {
   projects: Project[];
@@ -93,6 +94,8 @@ export default function ProjectScreen({ projects, selectedId, onSelect }: Props)
           </p>
         </>
       )}
+
+      {selectedId && <Batches projectId={selectedId} />}
 
       <h2>Start a project from a collection</h2>
       <p className="lede">

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type Card, type FacetValue, type Project } from "../lib/api";
 import { useMediaQuery } from "../lib/useMediaQuery";
 import CardView from "../components/CardView";
+import CreateNotes from "../components/CreateNotes";
 
 interface Filters {
   search: string;
@@ -66,6 +67,8 @@ function groupByPath(cards: Card[]): [string | null, Card[]][] {
 
 export default function Cards({ project }: { project: Project }) {
   const [filters, setFilters] = useState<Filters>(EMPTY);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [writing, setWriting] = useState(false);
   const set = <K extends keyof Filters>(key: K, value: Filters[K]) =>
     setFilters((f) => ({ ...f, [key]: value }));
 
@@ -202,10 +205,50 @@ export default function Cards({ project }: { project: Project }) {
         </details>
 
         <section className="column" style={{ margin: 0 }}>
+          <div className="bulkbar">
+            <span className="grow">
+              {selected.length
+                ? `${selected.length} selected`
+                : "Select cards, or act on everything not yet in Zotero"}
+            </span>
+            {selected.length > 0 && (
+              <button className="button quiet" onClick={() => setSelected([])}>
+                Clear selection
+              </button>
+            )}
+            <button
+              className="button quiet"
+              onClick={() =>
+                setSelected(
+                  selected.length
+                    ? []
+                    : (cards.data?.cards ?? [])
+                        .filter((c) => !c.zotero_note_key)
+                        .map((c) => c.id),
+                )
+              }
+            >
+              {selected.length ? "Select none" : "Select all shown"}
+            </button>
+            <button className="button" onClick={() => setWriting((v) => !v)}>
+              {writing ? "Close" : "Create notes in Zotero"}
+            </button>
+          </div>
+
+          {writing && (
+            <CreateNotes
+              projectId={project.id}
+              selected={selected}
+              onDone={() => setSelected([])}
+            />
+          )}
+
           <p className="counter">
-            <strong>{counts.quotes ?? 0}</strong> quotes ·{" "}
+            <strong>{counts.quotes ?? 0}</strong>{" "}
+            {counts.quotes === 1 ? "quote" : "quotes"} ·{" "}
             <strong>{counts.quotes_with_my_note ?? 0}</strong> of them have your note
-            on them · <strong>{counts.ideas ?? 0}</strong> cards in your own words
+            on them · <strong>{counts.ideas ?? 0}</strong>{" "}
+            {counts.ideas === 1 ? "card" : "cards"} in your own words
             {cards.data && cards.data.total !== counts.total && (
               <> · showing {cards.data.total}</>
             )}
@@ -234,7 +277,17 @@ export default function Cards({ project }: { project: Project }) {
                   <h3 className="group-heading">{path ?? "not in any collection"}</h3>
                 )}
                 {group.map((card) => (
-                  <CardView key={card.id} card={card} projectId={project.id} />
+                  <CardView
+                    key={card.id}
+                    card={card}
+                    projectId={project.id}
+                    selected={selected.includes(card.id)}
+                    onSelect={(id, on) =>
+                      setSelected((current) =>
+                        on ? [...current, id] : current.filter((x) => x !== id),
+                      )
+                    }
+                  />
                 ))}
               </div>
             ))}
