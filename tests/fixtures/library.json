@@ -1,0 +1,115 @@
+{
+  "headers": {
+    "Zotero-API-Version": "3",
+    "Zotero-Schema-Version": "44",
+    "Zotero-Server-ID": "TESTSERVER01",
+    "X-Zotero-Version": "10.0"
+  },
+  "collections": [
+    {"data": {"key": "ROOT", "version": 1, "name": "Agentic Governance", "parentCollection": false}},
+    {"data": {"key": "CH02", "version": 1, "name": "02 Oversight", "parentCollection": "ROOT"}},
+    {"data": {"key": "CH03", "version": 1, "name": "03 Capacity", "parentCollection": "ROOT"}},
+    {"data": {"key": "CH03A", "version": 1, "name": "03a Fiscal", "parentCollection": "CH03"}},
+    {"data": {"key": "OTHER", "version": 1, "name": "Unrelated reading", "parentCollection": false}},
+    {"data": {"key": "ORPHAN", "version": 1, "name": "Shared elsewhere", "parentCollection": "NOTHERE"}}
+  ],
+  "top": {
+    "ROOT": [],
+    "CH02": [
+      {"data": {"key": "SRC1", "version": 3, "itemType": "journalArticle",
+                "title": "Human oversight of autonomous agents",
+                "creators": [{"creatorType": "author", "lastName": "Smith", "firstName": "A."}],
+                "date": "2025-04-01", "publicationTitle": "AI & Society",
+                "DOI": "10.1000/xyz", "collections": ["CH02", "CH03"],
+                "someFutureField": "must survive in raw"}},
+      {"data": {"key": "NOTE9", "version": 2, "itemType": "note",
+                "note": "<p>My own framing: oversight is an organisational property.</p>",
+                "collections": ["CH02", "CH03"], "tags": []}}
+    ],
+    "CH03": [
+      {"data": {"key": "SRC1", "version": 3, "itemType": "journalArticle",
+                "title": "Human oversight of autonomous agents",
+                "creators": [{"creatorType": "author", "lastName": "Smith", "firstName": "A."}],
+                "date": "2025-04-01", "publicationTitle": "AI & Society",
+                "DOI": "10.1000/xyz", "collections": ["CH02", "CH03"]}},
+      {"data": {"key": "NOTE9", "version": 2, "itemType": "note",
+                "note": "<p>My own framing: oversight is an organisational property.</p>",
+                "collections": ["CH02", "CH03"], "tags": []}},
+      {"data": {"key": "SRC2", "version": 5, "itemType": "book",
+                "title": "State capacity and regulation",
+                "creators": [{"creatorType": "author", "lastName": "Tanaka"},
+                             {"creatorType": "author", "lastName": "Ito"},
+                             {"creatorType": "author", "lastName": "Mori"}],
+                "date": "2024", "ISBN": "9780000000000", "collections": ["CH03"]}}
+    ],
+    "CH03A": [
+      {"data": {"key": "SRC3", "version": 1, "itemType": "webpage",
+                "title": "A bookmark with no file", "creators": [],
+                "collections": ["CH03A"]}}
+    ],
+    "OTHER": [
+      {"data": {"key": "SRC9", "version": 1, "itemType": "book",
+                "title": "Outside the project", "creators": [], "date": "1999",
+                "collections": ["OTHER"]}}
+    ]
+  },
+  "children": {
+    "SRC1": [
+      {"data": {"key": "ATT1", "version": 4, "itemType": "attachment", "parentItem": "SRC1",
+                "contentType": "application/pdf", "title": "Smith 2025 PDF",
+                "filename": "smith2025.pdf", "linkMode": "imported_file"}},
+      {"data": {"key": "NOTE1", "version": 2, "itemType": "note", "parentItem": "SRC1",
+                "note": "<p>Smith conflates oversight with auditability.</p>", "tags": []}}
+    ],
+    "SRC2": [
+      {"data": {"key": "ATT2", "version": 4, "itemType": "attachment", "parentItem": "SRC2",
+                "contentType": "application/epub+zip", "title": "EPUB",
+                "filename": "tanaka2024.epub", "linkMode": "imported_file"}}
+    ],
+    "SRC3": [
+      {"data": {"key": "ATT3", "version": 1, "itemType": "attachment", "parentItem": "SRC3",
+                "title": "Link", "linkMode": "linked_url", "url": "https://example.org"}}
+    ],
+    "SRC9": [
+      {"data": {"key": "ATT9", "version": 1, "itemType": "attachment", "parentItem": "SRC9",
+                "contentType": "application/pdf", "title": "Other PDF",
+                "linkMode": "imported_file"}}
+    ]
+  },
+  "annotations": [
+    {"data": {"key": "ANN1", "version": 7, "itemType": "annotation", "parentItem": "ATT1",
+              "annotationType": "highlight",
+              "annotationText": "Human oversight becomes increasingly dif-\nfficult as autonomous agents operate across organizational boundaries.",
+              "annotationComment": "This is the hinge of my argument in ch.2.",
+              "annotationColor": "#ffd400", "annotationPageLabel": "132",
+              "annotationSortIndex": "00132|000000|00000",
+              "annotationPosition": {"pageIndex": 131, "rects": []},
+              "dateModified": "2026-08-01T00:00:00Z"}},
+    {"data": {"key": "ANN2", "version": 7, "itemType": "annotation", "parentItem": "ATT1",
+              "annotationType": "image", "annotationText": "",
+              "annotationPageLabel": "140", "annotationSortIndex": "00140|000000|00000",
+              "annotationPosition": {"pageIndex": 139}}},
+    {"data": {"key": "ANN3", "version": 7, "itemType": "annotation", "parentItem": "ATT1",
+              "annotationType": "highlight", "annotationText": "", "annotationComment": "",
+              "annotationSortIndex": "00009|000000|00000",
+              "annotationPosition": {"pageIndex": 8}}},
+    {"data": {"key": "ANN6", "version": 7, "itemType": "annotation", "parentItem": "ATT1",
+              "annotationType": "highlight",
+              "annotationText": "ＡＩガバナンスは「監督」を個人の能力として扱ってきた。",
+              "annotationComment": "", "annotationColor": "#a28ae5",
+              "annotationPageLabel": "iv", "annotationSortIndex": "00004|000000|00000",
+              "annotationPosition": {"pageIndex": 3}}},
+    {"data": {"key": "ANN4", "version": 9, "itemType": "annotation", "parentItem": "ATT2",
+              "annotationType": "highlight",
+              "annotationText": "Regulatory capacity lags behind deployment.",
+              "annotationComment": "", "annotationPageLabel": "",
+              "annotationSortIndex": "00006|000000|00000",
+              "annotationPosition": "{\"type\": \"FragmentSelector\", \"value\": \"epubcfi(/6/14[chap05]!/4/10/2/1:3)\"}"}},
+    {"data": {"key": "ANN5", "version": 2, "itemType": "annotation", "parentItem": "ATT9",
+              "annotationType": "highlight", "annotationText": "Belongs to another project.",
+              "annotationComment": "", "annotationPosition": {"pageIndex": 1}}}
+  ],
+  "files": {
+    "ATT2": "file:///Users/someone/Zotero/storage/AAAA/tanaka2024.epub"
+  }
+}

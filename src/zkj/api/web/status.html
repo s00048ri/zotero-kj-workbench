@@ -1,0 +1,131 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Zotero KJ Workbench — status</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Deliberately plain. The design pass belongs with the reading surface,
+     not with a diagnostic page. */
+  :root { color-scheme: light dark; --rule: color-mix(in srgb, currentColor 15%, transparent); }
+  body { font: 16px/1.6 ui-sans-serif, system-ui, sans-serif;
+         max-width: 46rem; margin: 3rem auto; padding: 0 1.5rem; }
+  h1 { font-size: 1.3rem; margin: 0 0 1.5rem; }
+  h2 { font-size: 1rem; margin: 2.5rem 0 .75rem; }
+  .state { padding: 1rem 1.25rem; border: 1px solid var(--rule); border-radius: 6px; }
+  .state[data-ok="false"] { border-color: #c2410c; }
+  .msg { font-weight: 600; margin: 0 0 .5rem; }
+  .remedy { margin: .5rem 0 0; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1.5rem; margin: 1rem 0 0; }
+  dt { opacity: .65; }
+  dd { margin: 0; font-variant-numeric: tabular-nums; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { padding: .1rem 0; }
+  button { font: inherit; background: none; border: 0; padding: .15rem .35rem;
+           border-radius: 4px; cursor: pointer; text-align: left; color: inherit; }
+  button:hover { background: var(--rule); }
+  button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+  code { opacity: .5; font-size: .8em; }
+  #preview { margin-top: 1rem; }
+  blockquote { margin: .5rem 0; padding-left: .9rem; border-left: 2px solid var(--rule); opacity: .85; }
+  @media (prefers-reduced-motion: no-preference) { .state { transition: border-color .2s; } }
+</style>
+
+<h1>Zotero KJ Workbench</h1>
+
+<div class="state" id="state" data-ok="true"><p class="msg">Checking Zotero…</p></div>
+
+<h2>Collections</h2>
+<ul id="tree"><li>…</li></ul>
+<div id="preview"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+async function json(url) {
+  const r = await fetch(url);
+  const body = await r.json().catch(() => ({ message: r.statusText }));
+  if (!r.ok) throw Object.assign(new Error(body.message || r.statusText), body);
+  return body;
+}
+
+function row(dl, label, value) {
+  if (value === null || value === undefined || value === "") return;
+  dl.insertAdjacentHTML("beforeend", `<dt>${label}</dt><dd>${value}</dd>`);
+}
+
+async function loadStatus() {
+  const s = await json("/api/status");
+  const ok = s.reachable && s.permitted;
+  const el = $("state");
+  el.dataset.ok = String(ok);
+  el.innerHTML = `<p class="msg"></p><dl></dl>`;
+  el.querySelector(".msg").textContent = s.message;
+  if (s.remedy) {
+    const p = document.createElement("p");
+    p.className = "remedy";
+    p.textContent = s.remedy;
+    el.append(p);
+  }
+  const dl = el.querySelector("dl");
+  row(dl, "Zotero", s.zotero_version);
+  row(dl, "API version", s.api_version);
+  row(dl, "Database", s.server_id ? `<code>${s.server_id}</code>` : null);
+  row(dl, "Schema", s.schema_version);
+  row(dl, "Notes can be written", s.writes_available ? "yes" : "no");
+  row(dl, "Collections", s.collection_count);
+  return ok;
+}
+
+function renderTree(nodes, into) {
+  into.innerHTML = "";
+  const walk = (node, ul) => {
+    const li = document.createElement("li");
+    li.style.paddingLeft = `${node.depth * 1.2}rem`;
+    const b = document.createElement("button");
+    b.textContent = node.name;
+    b.insertAdjacentHTML("beforeend", ` <code>${node.key}</code>`);
+    b.onclick = () => preview(node);
+    li.append(b);
+    ul.append(li);
+    node.children.forEach((c) => walk(c, ul));
+  };
+  nodes.forEach((n) => walk(n, into));
+}
+
+async function preview(node) {
+  const box = $("preview");
+  box.textContent = `Reading ${node.path}…`;
+  try {
+    const p = await json(`/api/collections/${node.key}/preview`);
+    const c = p.counts;
+    box.innerHTML = `<h2>${p.path}</h2><dl></dl>`;
+    const dl = box.querySelector("dl");
+    row(dl, "Sources", c.sources);
+    row(dl, "Attachments", c.attachments);
+    row(dl, "Highlights", c.highlights);
+    row(dl, "Your comments on them", c.comments);
+    row(dl, "Notes on items", c.child_notes);
+    row(dl, "Notes filed in collections", c.standalone_notes);
+    row(dl, "Subcollections", c.collections - 1);
+    row(dl, "Sources you have not highlighted", p.sources_without_annotations);
+    for (const q of p.sample_highlights) {
+      const bq = document.createElement("blockquote");
+      bq.textContent = q;
+      box.append(bq);
+    }
+  } catch (e) {
+    box.textContent = e.message + (e.remedy ? ` — ${e.remedy}` : "");
+  }
+}
+
+(async () => {
+  try {
+    const ok = await loadStatus();
+    if (!ok) { $("tree").innerHTML = "<li>Nothing to list until Zotero answers.</li>"; return; }
+    renderTree(await json("/api/collections"), $("tree"));
+  } catch (e) {
+    $("state").dataset.ok = "false";
+    $("state").innerHTML = `<p class="msg"></p>`;
+    $("state").querySelector(".msg").textContent = e.message;
+  }
+})();
+</script>
