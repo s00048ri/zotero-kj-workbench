@@ -79,7 +79,7 @@
   "annotations": [
     {"data": {"key": "ANN1", "version": 7, "itemType": "annotation", "parentItem": "ATT1",
               "annotationType": "highlight",
-              "annotationText": "Human oversight becomes increasingly dif-\nfficult as autonomous agents operate across organizational boundaries.",
+              "annotationText": "Human oversight becomes increasingly dif-\nficult as autonomous agents operate across organizational boundaries.",
               "annotationComment": "This is the hinge of my argument in ch.2.",
               "annotationColor": "#ffd400", "annotationPageLabel": "132",
               "annotationSortIndex": "00132|000000|00000",
