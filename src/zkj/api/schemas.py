@@ -30,7 +30,7 @@ class ConnectionStatus(BaseModel):
         collection_count: int | None,
         message: str,
         remedy: str | None = None,
-    ) -> "ConnectionStatus":
+    ) -> ConnectionStatus:
         return cls(
             reachable=info.reachable,
             permitted=permitted,
@@ -51,10 +51,10 @@ class CollectionOut(BaseModel):
     path: str
     depth: int
     parent_key: str | None = None
-    children: list["CollectionOut"] = []
+    children: list[CollectionOut] = []
 
     @classmethod
-    def from_node(cls, node: CollectionNode) -> "CollectionOut":
+    def from_node(cls, node: CollectionNode) -> CollectionOut:
         return cls(
             key=node.key,
             name=node.name,
@@ -79,7 +79,7 @@ class CollectionPreview(BaseModel):
     @classmethod
     def from_snapshot(
         cls, node: CollectionNode, snapshot: SubtreeSnapshot
-    ) -> "CollectionPreview":
+    ) -> CollectionPreview:
         without = sum(1 for s in snapshot.sources.values() if not s.annotations)
         samples = [
             a.text.strip()[:240]

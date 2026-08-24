@@ -15,6 +15,7 @@ right:
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from dataclasses import dataclass, field
 from typing import Any
@@ -207,8 +208,8 @@ def facets(conn: sqlite3.Connection, project_id: str) -> dict[str, list[dict[str
     return {
         "sources": group_by(
             "SELECT s.id AS value, "
-            "COALESCE(s.creators_short, 'Anon.') || COALESCE(' ' || s.year, '') "
-            "|| ' — ' || COALESCE(s.title, '(untitled)') AS label, COUNT(*) AS count "
+            "COALESCE(s.creators_short || COALESCE(' ' || s.year, '') || ' — ', '') "
+            "|| COALESCE(s.title, '(untitled)') AS label, COUNT(*) AS count "
             "FROM card c JOIN source s ON s.id = c.source_id "
             "WHERE c.project_id = ? GROUP BY s.id ORDER BY label"
         ),
@@ -259,11 +260,23 @@ def locator_of(card: dict[str, Any]) -> Locator:
     )
 
 
+def short_title(title: str | None, limit: int = 48) -> str:
+    """The part of a title a reader would say out loud."""
+    if not title:
+        return ""
+    head = re.split(r"\s*[:：]\s*", title.strip(), maxsplit=1)[0]
+    return head if len(head) <= limit else head[: limit - 1].rstrip() + "…"
+
+
 def citation_of(card: dict[str, Any]) -> str:
-    """“Smith 2025, p. 132”. Author-only when the item has no date."""
-    name = card.get("creators_short")
+    """“Smith 2025, p. 132”. Author-only when the item has no date, and
+    title-first when the item names no author at all."""
+    author = card.get("creators_short")
+    name = author or short_title(card.get("source_title"))
     if not name:
         return ""
-    head = " ".join(filter(None, [name, card.get("source_year")]))
+    year = card.get("source_year")
+    # "Smith 2025" is a name and a date; "A Title, 2025" needs the comma.
+    head = f"{name} {year}" if author and year else ", ".join(filter(None, [name, year]))
     locator = locator_of(card).render()
     return ", ".join(filter(None, [head, locator]))

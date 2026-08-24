@@ -1,0 +1,421 @@
+/* Zotero KJ Workbench
+ *
+ * The subject is a researcher's own reading: a printed page, and what they
+ * wrote in its margin. The whole design commits to that one distinction —
+ * the source's words sit on a leaf of paper in a reading serif, the
+ * researcher's own words sit on the inked ground of the margin in a
+ * humanist sans, and the two are joined by a rule. Whose words these are is
+ * legible before a word is read.
+ *
+ * Palette
+ *   --board     the desk the cards lie on
+ *   --leaf      a page fragment: the source's words
+ *   --margin    ink: the researcher's own words
+ *   --ink       text
+ *   --graphite  citations, ids, chrome
+ *   --caution   estimated locators, and nothing else
+ */
+
+:root {
+  --board: #e4e6e1;
+  --leaf: #fafaf7;
+  --margin: #232b3a;
+  --ink: #191c1f;
+  --graphite: #666d75;
+  --caution: #8a5a11;
+
+  --on-margin: #eef1f6;
+  --rule: color-mix(in srgb, var(--ink) 14%, transparent);
+  --rule-strong: color-mix(in srgb, var(--ink) 26%, transparent);
+  --shadow: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Source Serif 4",
+    "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", Georgia, serif;
+  --sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, "JetBrains Mono", monospace;
+
+  --measure: 66ch;
+  --radius: 3px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --board: #14171a;
+    --leaf: #1e2226;
+    --margin: #2b3547;
+    --ink: #e7e8e4;
+    --graphite: #949aa2;
+    --caution: #d3a25c;
+    --on-margin: #eef1f6;
+    --rule: color-mix(in srgb, var(--ink) 16%, transparent);
+    --rule-strong: color-mix(in srgb, var(--ink) 30%, transparent);
+    --shadow: none;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--board);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* -- chrome ------------------------------------------------------------- */
+
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  padding: 0.85rem 1.5rem;
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--board) 88%, var(--leaf));
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.wordmark {
+  font-family: var(--serif);
+  font-size: 1.05rem;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.tabs { display: flex; gap: 0.25rem; margin-left: auto; }
+
+.tab {
+  background: none;
+  border: 0;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius);
+  color: var(--graphite);
+  cursor: pointer;
+}
+.tab:hover { background: var(--rule); color: var(--ink); }
+.tab[aria-current="page"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+.tab:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.connection {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--graphite); }
+.dot[data-state="ok"] { background: #4a7c59; }
+.dot[data-state="read-only"] { background: var(--caution); }
+.dot[data-state="down"] { background: #a8443b; }
+
+main { flex: 1; padding: 2rem 1.5rem 5rem; }
+.column { max-width: var(--measure); margin: 0 auto; }
+.wide { max-width: 72rem; margin: 0 auto; }
+
+h2 { font-family: var(--serif); font-weight: 600; font-size: 1.25rem; margin: 0 0 0.4rem; }
+h3 { font-size: 0.95rem; margin: 1.75rem 0 0.5rem; font-weight: 600; }
+p { margin: 0 0 0.9rem; }
+.lede { color: var(--graphite); max-width: 60ch; }
+
+.meta {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: var(--graphite);
+}
+
+/* -- controls ----------------------------------------------------------- */
+
+.button {
+  background: var(--ink);
+  color: var(--board);
+  border: 0;
+  border-radius: var(--radius);
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+}
+.button:hover { background: color-mix(in srgb, var(--ink) 85%, var(--margin)); }
+.button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.button.quiet {
+  background: none;
+  color: var(--graphite);
+  border: 1px solid var(--rule-strong);
+}
+.button.quiet:hover { color: var(--ink); background: var(--rule); }
+
+.field {
+  width: 100%;
+  background: var(--leaf);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.65rem;
+}
+
+label.stack { display: block; margin-bottom: 0.9rem; }
+label.stack > span { display: block; margin-bottom: 0.25rem; font-size: 0.85rem; color: var(--graphite); }
+
+/* -- collection tree ---------------------------------------------------- */
+
+.tree { list-style: none; margin: 0; padding: 0; max-height: 26rem; overflow: auto; }
+.tree li { margin: 0; }
+.tree button {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0.22rem 0.4rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.tree button:hover { background: var(--rule); }
+.tree button[aria-pressed="true"] { background: var(--rule-strong); }
+.tree .count { margin-left: auto; }
+
+/* -- cards -------------------------------------------------------------- */
+
+.cards { display: flex; flex-direction: column; gap: 1.6rem; }
+
+.group-heading {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--graphite);
+  margin: 1.5rem 0 -0.4rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.card {
+  background: var(--leaf);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem 0.9rem;
+}
+
+/* The source's words: a page fragment, set for reading. */
+.card .quote {
+  font-family: var(--serif);
+  font-size: 1.06rem;
+  line-height: 1.6;
+  margin: 0 0 0.75rem;
+}
+.card .quote:lang(ja) { line-height: 1.85; }
+
+/* The researcher's words: the inked margin. Different ground, different
+ * face, different colour — separable before it is read. */
+.card.mine {
+  background: var(--margin);
+  color: var(--on-margin);
+  border-color: transparent;
+}
+.card.mine .body {
+  font-family: var(--sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 0.7rem;
+}
+.card.mine .meta { color: color-mix(in srgb, var(--on-margin) 62%, transparent); }
+.card.mine .swatch { border-color: color-mix(in srgb, var(--on-margin) 30%, transparent); }
+
+.card.excluded { opacity: 0.5; }
+
+.card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.55rem;
+}
+.card-head .id { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.05em; }
+.card-head .voice {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.75;
+}
+/* Chrome recedes: the controls are there, but the text is what you see. */
+.card-head .actions { margin-left: auto; display: flex; gap: 0.15rem; opacity: 0; transition: opacity 0.15s; }
+.card:hover .actions,
+.card:focus-within .actions { opacity: 1; }
+@media (hover: none) { .card-head .actions { opacity: 1; } }
+.card-head .actions button {
+  border: 0;
+  background: none;
+  color: var(--graphite);
+  font-size: 0.8rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.card-head .actions button:hover { color: var(--ink); background: var(--rule); }
+.card.mine .actions button:hover { color: var(--on-margin); background: color-mix(in srgb, var(--on-margin) 12%, transparent); }
+
+.card-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 0.9rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--rule);
+}
+.card.mine .card-foot { border-top-color: color-mix(in srgb, var(--on-margin) 18%, transparent); }
+
+.citation { font-family: var(--serif); font-size: 0.9rem; }
+.source-title { font-family: var(--serif); font-size: 0.85rem; color: var(--graphite); font-style: italic; }
+.estimated { color: var(--caution); }
+.swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  border: 1px solid var(--rule-strong);
+  display: inline-block;
+}
+
+.label-line {
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  font-style: italic;
+  color: var(--graphite);
+  margin: 0 0 0.6rem;
+}
+
+/* The signature element: a note the researcher wrote is tied to the passage
+ * it answers by a rule that turns out of the card above it. */
+.tie {
+  margin-left: 2.2rem;
+  border-left: 1px solid var(--rule-strong);
+  padding-left: 1.1rem;
+  padding-top: 0.9rem;
+  position: relative;
+}
+.tie::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1.6rem;
+  width: 0.9rem;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.linked { display: flex; flex-direction: column; gap: 0.9rem; }
+
+/* -- filters ------------------------------------------------------------ */
+
+.layout { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; }
+@media (max-width: 60rem) {
+  .layout { grid-template-columns: 1fr; gap: 1.25rem; }
+  .rail { position: static !important; }
+}
+
+.rail { position: sticky; top: 4.5rem; align-self: start; max-height: calc(100vh - 6rem); overflow: auto; }
+.rail > summary { display: none; }
+.rail h3:first-of-type { margin-top: 0; }
+
+@media (max-width: 60rem) {
+  .rail {
+    max-height: none;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.9rem;
+  }
+  .rail > summary {
+    display: block;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--graphite);
+    padding: 0.15rem 0;
+  }
+  .rail[open] > summary { margin-bottom: 0.5rem; border-bottom: 1px solid var(--rule); }
+  .rail:not([open]) { padding: 0.5rem 0.9rem; }
+}
+
+.chips { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.chip {
+  background: none;
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.82rem;
+  color: var(--graphite);
+  cursor: pointer;
+}
+.chip:hover { color: var(--ink); }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--board); }
+.chip .n { font-family: var(--mono); font-size: 0.72em; opacity: 0.7; margin-left: 0.35rem; }
+
+.swatches { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.swatch-button {
+  width: 1.5rem; height: 1.5rem; border-radius: var(--radius);
+  border: 2px solid transparent; cursor: pointer; padding: 0;
+}
+.swatch-button[aria-pressed="true"] { border-color: var(--ink); }
+
+.counter {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  color: var(--graphite);
+  margin: 0 0 1.25rem;
+}
+.counter strong { color: var(--ink); font-weight: 600; }
+
+.empty {
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius);
+  padding: 2rem 1.5rem;
+  text-align: left;
+  color: var(--graphite);
+}
+.empty h3 { margin-top: 0; color: var(--ink); }
+
+.notice {
+  border-left: 3px solid var(--caution);
+  padding: 0.6rem 0.9rem;
+  background: color-mix(in srgb, var(--caution) 8%, transparent);
+  margin: 0 0 1.25rem;
+}
+.notice.bad { border-left-color: #a8443b; background: color-mix(in srgb, #a8443b 8%, transparent); }
+
+.stats { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1.5rem; font-size: 0.9rem; }
+.stats dt { color: var(--graphite); }
+.stats dd { margin: 0; font-family: var(--mono); font-size: 0.85rem; }
+
+.spinner { color: var(--graphite); font-size: 0.9rem; }

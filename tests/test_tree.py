@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from zkj.zotero import CollectionTree, ZoteroError
 from tests.conftest import load_fixture
+from zkj.zotero import CollectionTree, ZoteroError
 
 
 @pytest.fixture

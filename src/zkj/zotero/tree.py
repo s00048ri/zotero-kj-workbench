@@ -7,8 +7,9 @@ not a display detail.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 from .errors import ZoteroError
 from .models import Collection
@@ -21,11 +22,11 @@ class CollectionNode:
     key: str
     name: str
     parent_key: str | None
-    children: list["CollectionNode"] = field(default_factory=list)
+    children: list[CollectionNode] = field(default_factory=list)
     path: str = ""
     depth: int = 0
 
-    def walk(self) -> Iterator["CollectionNode"]:
+    def walk(self) -> Iterator[CollectionNode]:
         yield self
         for child in self.children:
             yield from child.walk()
@@ -39,7 +40,7 @@ class CollectionTree:
         self.roots = roots
 
     @classmethod
-    def from_payloads(cls, payloads: Iterable[dict[str, Any]]) -> "CollectionTree":
+    def from_payloads(cls, payloads: Iterable[dict[str, Any]]) -> CollectionTree:
         nodes: dict[str, CollectionNode] = {}
         for payload in payloads:
             c = Collection.from_payload(payload)

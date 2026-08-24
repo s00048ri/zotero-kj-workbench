@@ -133,3 +133,21 @@ def test_a_source_without_a_date_cites_author_only(project):
     conn.execute("UPDATE source SET year = NULL WHERE creators_short = 'Smith'")
     page = list_cards(conn, pid, CardFilters(search="oversight becomes"))
     assert citation_of(page.cards[0]) == "Smith, p. 132"
+
+
+def test_an_item_naming_no_author_cites_its_title(project):
+    """“Anon. 2026, p. 1” claims something. The title claims nothing."""
+    conn, pid = project
+    conn.execute("UPDATE source SET creators_short = NULL WHERE creators_short = 'Smith'")
+    page = list_cards(conn, pid, CardFilters(search="oversight becomes"))
+    assert citation_of(page.cards[0]) == "Human oversight of autonomous agents, 2025, p. 132"
+
+
+def test_a_subtitle_is_dropped_from_a_title_citation():
+    from zkj.cards import short_title
+
+    assert short_title("Governance at a Crossroads: AI and the Future") == (
+        "Governance at a Crossroads"
+    )
+    assert short_title(None) == ""
+    assert short_title("A" * 60).endswith("…")

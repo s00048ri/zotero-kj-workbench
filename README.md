@@ -20,13 +20,22 @@ reference implementation, not something to port line by line.
 ```
 uv venv --python 3.12
 uv pip install -e ".[dev]"
+cd frontend && npm install && npm run build && cd ..
 .venv/bin/python -m zkj          # opens http://127.0.0.1:8420/
 ```
+
+The frontend builds into `src/zkj/api/web/dist`, which FastAPI serves from the
+same port — one process, no CORS. Without a build the app still runs and serves
+a diagnostic status page at `/status`.
+
+While working on the interface, `npm run dev` in `frontend/` proxies `/api` to
+port 8420, so the Python side keeps running unchanged.
 
 ## Tests
 
 ```
 .venv/bin/python -m pytest
+.venv/bin/ruff check src tests
 ```
 
 No live Zotero is involved: the suite answers from `tests/fixtures/library.json`
@@ -43,15 +52,26 @@ src/zkj/zotero/     the only code that talks to Zotero
   tree.py           the collection tree; subfolders are chapters
   reader.py         read one subtree, counting items rather than sightings
 src/zkj/api/        FastAPI app; serves the interface on one port
+src/zkj/store/      SQLite schema and numbered migrations
+src/zkj/importer.py annotations and notes become cards, idempotently
+src/zkj/locators.py where a passage is — and never an invented page
+src/zkj/text.py     repairing extracted text without altering it
+src/zkj/cards.py    filters, search, and the counts worth showing
+frontend/           React + TypeScript; builds into src/zkj/api/web/dist
 ```
+
+## Where the database lives
+
+`~/Library/Application Support/zkj/zkj.sqlite3` on macOS, or wherever `ZKJ_DB`
+points. Nothing is written into your Zotero library at this milestone.
 
 ## Milestones
 
 | | | |
 |---|---|---|
 | M1 | Zotero adapter and status page | **done** |
-| M2 | Import, cards, locators, Cards screen | next |
-| M3 | Notes into Zotero | |
+| M2 | Import, cards, locators, Cards screen | **done** |
+| M3 | Notes into Zotero | next |
 | M4 | Placement read-back and Groups | |
 | M5 | Add my note | |
 | M6 | Structure comparison | |

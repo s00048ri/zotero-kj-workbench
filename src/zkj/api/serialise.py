@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from ..cards import citation_of, locator_of
@@ -61,7 +60,3 @@ def _linked(row: dict[str, Any]) -> dict[str, Any]:
         "origin": row.get("origin"),
         "text": row["text"],
     }
-
-
-def json_or_none(value: str | None) -> Any:
-    return json.loads(value) if value else None

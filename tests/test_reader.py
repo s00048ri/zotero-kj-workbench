@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
+from tests.conftest import load_fixture
 from zkj.zotero import CollectionTree
 from zkj.zotero.reader import read_subtree
-from tests.conftest import load_fixture
 
 
 @pytest.fixture

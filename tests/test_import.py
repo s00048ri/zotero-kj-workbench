@@ -6,10 +6,10 @@ import copy
 
 import pytest
 
-from zkj.importer import ProjectConflict, run_import
-from zkj.store import connect
 from tests.conftest import FakeZotero, load_fixture
 from tests.test_locators import make_epub
+from zkj.importer import ProjectConflict, run_import
+from zkj.store import connect
 
 
 @pytest.fixture

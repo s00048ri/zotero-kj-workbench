@@ -10,9 +10,10 @@ from __future__ import annotations
 import re
 import sqlite3
 import uuid
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 MIGRATION_DIR = Path(__file__).parent / "migrations"
 _NUMBERED = re.compile(r"^(\d+)_")

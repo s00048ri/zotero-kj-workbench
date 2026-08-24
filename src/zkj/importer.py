@@ -22,8 +22,9 @@ import json
 import sqlite3
 import urllib.parse
 import urllib.request
-from dataclasses import asdict, dataclass, field
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import asdict, dataclass
+from typing import Any
 
 from . import gbooks
 from .locators import NO_LOCATOR, EpubIndex, Locator, resolve_locator
@@ -37,7 +38,7 @@ from .zotero.models import (
     Note,
     Source,
 )
-from .zotero.reader import SourceRecord, SubtreeSnapshot, read_subtree
+from .zotero.reader import SourceRecord, read_subtree
 from .zotero.tree import CollectionNode, CollectionTree
 
 KJ_TAG = "kj-card"

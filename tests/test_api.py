@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
+from tests.conftest import FakeZotero
 from zkj.api import deps
 from zkj.api.app import create_app
-from tests.conftest import FakeZotero
 
 
 def app_with(fake: FakeZotero) -> TestClient:

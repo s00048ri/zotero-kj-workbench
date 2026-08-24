@@ -31,7 +31,7 @@ class ZoteroObject(BaseModel):
     raw: dict[str, Any] = Field(default_factory=dict, repr=False)
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any]) -> "ZoteroObject":
+    def from_payload(cls, payload: dict[str, Any]) -> ZoteroObject:
         data = payload.get("data", payload)
         return cls(**data, raw=payload)
 
@@ -76,7 +76,13 @@ class Source(ZoteroObject):
         return m.group(1) if m else None
 
     @property
-    def creators_short(self) -> str:
+    def creators_short(self) -> str | None:
+        """None when the item names nobody — a report, a working paper.
+
+        Returning a stand-in like "Anon." here would put it in every citation
+        of that source; the citation builder falls back to the title instead,
+        which is what a reader can actually look up.
+        """
         names = [
             (c.get("lastName") or c.get("name") or "").strip()
             for c in self.creators
@@ -84,7 +90,7 @@ class Source(ZoteroObject):
         ]
         names = [n for n in names if n]
         if not names:
-            return "Anon."
+            return None
         if len(names) == 1:
             return names[0]
         if len(names) == 2:

@@ -15,8 +15,9 @@ Two counting rules, both of them corrections of real mistakes:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from .client import ZoteroClient
 from .models import Annotation, Attachment, Note, Source, item_type_of, parse_item

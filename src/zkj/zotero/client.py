@@ -22,8 +22,9 @@ assumed:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 import httpx
 
@@ -217,7 +218,7 @@ class ZoteroClient:
     def close(self) -> None:
         self._client.close()
 
-    def __enter__(self) -> "ZoteroClient":
+    def __enter__(self) -> ZoteroClient:
         return self
 
     def __exit__(self, *exc: object) -> None:

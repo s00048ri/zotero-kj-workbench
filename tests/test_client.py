@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from zkj.zotero import ZoteroClient, ZoteroForbidden, ZoteroUnreachable
 from tests.conftest import FakeZotero
+from zkj.zotero import ZoteroClient, ZoteroForbidden, ZoteroUnreachable
 
 
 def test_capability_detected_from_headers(client, fake_zotero):
@@ -115,7 +115,8 @@ def test_creators_and_year_degrade_honestly(client):
     assert three.creators_short == "Tanaka et al."
     undated = Source(key="X", itemType="book", creators=[])
     assert undated.year is None
-    assert undated.creators_short == "Anon."
+    # nobody is named, so nothing is claimed about who wrote it
+    assert undated.creators_short is None
 
 
 def test_file_url_returns_none_when_there_is_no_file(client):

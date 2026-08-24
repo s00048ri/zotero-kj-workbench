@@ -10,6 +10,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from ..config import settings
 from ..zotero import ZoteroClient, ZoteroError, ZoteroForbidden
@@ -20,6 +21,7 @@ from .deps import get_client, zotero_error_handler
 from .schemas import CollectionOut, CollectionPreview, ConnectionStatus
 
 STATIC_DIR = Path(__file__).parent / "web"
+DIST_DIR = STATIC_DIR / "dist"
 
 
 def create_app() -> FastAPI:
@@ -92,8 +94,21 @@ def create_app() -> FastAPI:
         snapshot = read_subtree(client, tree, key)
         return CollectionPreview.from_snapshot(node, snapshot)
 
+    # The built interface, when there is one. Without a build the app still
+    # runs and serves the diagnostic status page, which is what a fresh clone
+    # gets before `npm run build`.
+    index_html = DIST_DIR / "index.html"
+    if index_html.exists():
+        app.mount(
+            "/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets"
+        )
+
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
+        return FileResponse(index_html if index_html.exists() else STATIC_DIR / "status.html")
+
+    @app.get("/status", include_in_schema=False)
+    def status_page() -> FileResponse:
         return FileResponse(STATIC_DIR / "status.html")
 
     return app
