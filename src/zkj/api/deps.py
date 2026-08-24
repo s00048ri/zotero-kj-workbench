@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import sqlite3
 from functools import lru_cache
+from typing import Iterator
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from ..config import settings
+from ..store import connect
 from ..zotero import (
     ZoteroClient,
     ZoteroError,
@@ -23,6 +27,16 @@ def get_client() -> ZoteroClient:
 
 def reset_client() -> None:
     get_client.cache_clear()
+
+
+def get_db() -> Iterator[sqlite3.Connection]:
+    """One connection per request. SQLite connections do not cross threads,
+    and FastAPI runs sync endpoints in a pool."""
+    conn = connect(settings.db_path)
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 _STATUS = {

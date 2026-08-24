@@ -15,6 +15,7 @@ from ..config import settings
 from ..zotero import ZoteroClient, ZoteroError, ZoteroForbidden
 from ..zotero.reader import read_subtree
 from ..zotero.tree import CollectionTree
+from . import routes_cards, routes_projects
 from .deps import get_client, zotero_error_handler
 from .schemas import CollectionOut, CollectionPreview, ConnectionStatus
 
@@ -24,6 +25,8 @@ STATIC_DIR = Path(__file__).parent / "web"
 def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, version="0.1.0")
     app.add_exception_handler(ZoteroError, zotero_error_handler)
+    app.include_router(routes_projects.router)
+    app.include_router(routes_cards.router)
 
     @app.get("/api/status", response_model=ConnectionStatus)
     def status(client: ZoteroClient = Depends(get_client)) -> ConnectionStatus:

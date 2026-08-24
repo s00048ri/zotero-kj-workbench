@@ -95,3 +95,103 @@ class CollectionPreview(BaseModel):
             sources_without_annotations=without,
             sample_highlights=samples,
         )
+
+
+# -- projects and cards ---------------------------------------------------
+
+
+class ProjectIn(BaseModel):
+    name: str
+    collection_key: str
+    use_google_books: bool = False
+
+
+class ProjectOut(BaseModel):
+    id: str
+    name: str
+    root_collection_key: str
+    root_path: str | None = None
+    zotero_server_id: str | None = None
+    research_question: str | None = None
+    created_at: str
+    last_import_at: str | None = None
+    counts: dict[str, int] = {}
+    writable_here: bool = True
+
+
+class ImportResult(BaseModel):
+    project: ProjectOut
+    stats: dict[str, int]
+
+
+class SourceOut(BaseModel):
+    id: str | None = None
+    key: str | None = None
+    title: str | None = None
+    creators_short: str | None = None
+    year: str | None = None
+    publication_title: str | None = None
+
+
+class LocatorOut(BaseModel):
+    type: str
+    value: str | None = None
+    source: str
+    estimated: bool
+    rendered: str
+    estimated_page: int | None = None
+    detail: dict = {}
+
+
+class LinkedCardOut(BaseModel):
+    id: str
+    human_id: str
+    kind: str
+    origin: str | None = None
+    text: str
+
+
+class CardOut(BaseModel):
+    id: str
+    human_id: str
+    kind: str
+    origin: str
+    text: str
+    text_raw: str | None = None
+    human_label: str | None = None
+    color: str | None = None
+    status: str
+    prior_path: str | None = None
+    prior_ambiguous: bool = False
+    kj_path: str | None = None
+    zotero_note_key: str | None = None
+    origin_note_key: str | None = None
+    materialized_at: str | None = None
+    citation: str
+    source: SourceOut | None = None
+    locator: LocatorOut
+    linked_ideas: list[LinkedCardOut] = []
+    parent: LinkedCardOut | None = None
+
+
+class CardPageOut(BaseModel):
+    cards: list[CardOut]
+    total: int
+    counts: dict[str, int]
+
+
+class FacetValue(BaseModel):
+    value: str | None = None
+    label: str | None = None
+    count: int
+
+
+class FacetsOut(BaseModel):
+    sources: list[FacetValue] = []
+    years: list[FacetValue] = []
+    colors: list[FacetValue] = []
+    kinds: list[FacetValue] = []
+    origins: list[FacetValue] = []
+    locator_types: list[FacetValue] = []
+    prior_paths: list[FacetValue] = []
+    groups: list[FacetValue] = []
