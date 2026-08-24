@@ -5,12 +5,22 @@ from __future__ import annotations
 import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 
+from ..annotate import CommentConflict, write_my_note
 from ..cards import CardFilters, facets, list_cards
 from ..store import now_iso
-from .deps import get_db
+from ..zotero import ZoteroClient, ZoteroError
+from .deps import get_client, get_db
+from .routes_writes import session_for
 from .schemas import CardOut, CardPageOut, FacetsOut
 from .serialise import card_out
+
+
+class MyNoteIn(BaseModel):
+    text: str
+    push_to_zotero: bool = True
+    overwrite: bool = False
 
 router = APIRouter(prefix="/api/projects/{project_id}", tags=["cards"])
 
@@ -134,3 +144,46 @@ def update_card(
     if not updated:
         raise HTTPException(404, "No such card.")
     return get_card(project_id, card_id, conn)
+
+
+@router.put("/cards/{card_id}/my-note", response_model=CardOut)
+def put_my_note(
+    project_id: str,
+    card_id: str,
+    body: MyNoteIn,
+    conn: sqlite3.Connection = Depends(get_db),
+    client: ZoteroClient = Depends(get_client),
+) -> CardOut:
+    """What the researcher takes this passage to mean.
+
+    Saved as an idea card of their own, and — when the card came from a
+    highlight — written back into that highlight's comment in Zotero, so the
+    two stores agree. The highlighted text itself is never written.
+    """
+    _exists(conn, project_id)
+    session = session_for(conn, client) if body.push_to_zotero else None
+    try:
+        idea = write_my_note(
+            conn,
+            project_id,
+            card_id,
+            body.text,
+            client=client if body.push_to_zotero else None,
+            session=session,
+            push_to_zotero=body.push_to_zotero,
+            overwrite=body.overwrite,
+        )
+    except CommentConflict as e:
+        raise HTTPException(
+            409,
+            {
+                "message": str(e),
+                "existing": e.existing,
+                "hint": "Send overwrite: true to replace it, or keep the note here only.",
+            },
+        ) from e
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    except ZoteroError as e:
+        raise HTTPException(502, str(e)) from e
+    return get_card(project_id, idea["id"], conn)

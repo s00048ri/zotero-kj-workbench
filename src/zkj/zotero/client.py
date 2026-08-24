@@ -34,6 +34,7 @@ from .errors import (
     ZoteroHTTPError,
     ZoteroRateLimited,
     ZoteroUnreachable,
+    ZoteroWritesUnavailable,
 )
 from .models import Annotation, parse_item
 
@@ -56,11 +57,17 @@ class ServerInfo:
         return bool(self.server_id)
 
 
-class ZoteroClient:
-    """Read-only client for the Zotero local API.
+# The web API caps a multi-object write at 50 objects, and so does this one.
+WRITE_BATCH = 50
 
-    Writes are deliberately absent at this milestone: they carry their own
-    authorization lifecycle and land with the code that needs them.
+
+class ZoteroClient:
+    """Client for the Zotero local API.
+
+    Reads need nothing. Writes need Zotero 10+, a server ID header on every
+    request, and a key obtained through a dialog the user answers — see
+    :class:`zkj.writes.WriteSession`, which owns that lifecycle. This class
+    only knows how to send one request.
     """
 
     def __init__(
@@ -213,7 +220,89 @@ class ZoteroClient:
         text = resp.text.strip()
         return text or None
 
-    # -- lifecycle ---------------------------------------------------------
+    # -- writes ------------------------------------------------------------
+
+    def authorize(self, app_name: str) -> dict[str, Any]:
+        """Ask Zotero for a write key. This shows a dialog in Zotero.
+
+        ``remember`` is true only if the user chose "Always Allow". A key from
+        plain "Allow" is consumed by the first successful write.
+        """
+        info = self.server_info()
+        if not info.server_id:
+            raise ZoteroWritesUnavailable(
+                "This Zotero cannot accept writes from other applications: it "
+                "predates local API write support."
+            )
+        try:
+            resp = self._request(
+                "POST",
+                f"{self.base}/local/authorize",
+                json_body={"appName": app_name},
+                headers={"Zotero-Server-ID": info.server_id},
+            )
+        except ZoteroHTTPError as e:
+            if e.status == 403:
+                raise ZoteroForbidden(
+                    "The write request was refused in Zotero."
+                ) from e
+            raise
+        return resp.json() if resp.content else {}
+
+    def _write_headers(self, api_key: str) -> dict[str, str]:
+        info = self.server_info()
+        if not info.server_id:
+            raise ZoteroWritesUnavailable("This Zotero cannot accept writes.")
+        # Without the server ID Zotero answers 428: the request would otherwise
+        # be ambiguous about which database it means.
+        return {"Zotero-Server-ID": info.server_id, "Zotero-API-Key": api_key}
+
+    def create_items(self, items: list[dict[str, Any]], api_key: str) -> dict[str, Any]:
+        resp = self._request(
+            "POST", f"{self.prefix}/items", json_body=items,
+            headers=self._write_headers(api_key),
+        )
+        return resp.json() if resp.content else {}
+
+    def create_collections(
+        self, collections: list[dict[str, Any]], api_key: str
+    ) -> dict[str, Any]:
+        resp = self._request(
+            "POST", f"{self.prefix}/collections", json_body=collections,
+            headers=self._write_headers(api_key),
+        )
+        return resp.json() if resp.content else {}
+
+    def update_items(self, items: list[dict[str, Any]], api_key: str) -> dict[str, Any]:
+        """Partial update. Each object must carry its key and version."""
+        resp = self._request(
+            "PATCH", f"{self.prefix}/items", json_body=items,
+            headers=self._write_headers(api_key),
+        )
+        return resp.json() if resp.content else {}
+
+    def delete_items(self, keys: list[str], api_key: str, version: int) -> None:
+        headers = self._write_headers(api_key)
+        headers["If-Unmodified-Since-Version"] = str(version)
+        self._request(
+            "DELETE", f"{self.prefix}/items",
+            params={"itemKey": ",".join(keys)}, headers=headers,
+        )
+
+    def item(self, key: str) -> dict[str, Any] | None:
+        try:
+            resp = self._request("GET", f"{self.prefix}/items/{key}")
+        except ZoteroHTTPError:
+            return None
+        return resp.json() if resp.content else None
+
+    def library_version(self) -> int:
+        """The library's current version, needed to delete safely."""
+        resp = self._request("GET", f"{self.prefix}/items", params={"limit": 1})
+        try:
+            return int(resp.headers.get("Last-Modified-Version", "0"))
+        except ValueError:
+            return 0
 
     def close(self) -> None:
         self._client.close()

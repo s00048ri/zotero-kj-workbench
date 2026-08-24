@@ -42,6 +42,7 @@ from .zotero.reader import SourceRecord, read_subtree
 from .zotero.tree import CollectionNode, CollectionTree
 
 KJ_TAG = "kj-card"
+INBOX_NAME = "Inbox"
 
 Progress = Callable[[str], None]
 
@@ -97,6 +98,9 @@ class ImportStats:
     locator_none: int = 0
     locator_estimated: int = 0
     own_notes_seen: int = 0
+    placements_read: int = 0
+    still_in_inbox: int = 0
+    unknown_kj_notes: int = 0
 
     def as_dict(self) -> dict[str, int]:
         return asdict(self)
@@ -132,6 +136,7 @@ class Importer:
         self._epubs: dict[str, EpubIndex | None] = {}
         self._next_number = 1
         self._card_ids: dict[str, str] = {}  # origin_key -> card id
+        self._placed: set[str] = set()  # cards whose placement was read back
 
     # -- entry point -------------------------------------------------------
 
@@ -490,9 +495,10 @@ class Importer:
     ) -> None:
         if KJ_TAG in note.tag_names:
             # A note this tool created. Reading it back as a fresh idea would
-            # duplicate the card it was made from; where it now sits is a
-            # grouping decision, handled when grouping is.
+            # duplicate the card it came from. Where the researcher has since
+            # dragged it *is* the grouping decision, so that is what is read.
             self.stats.own_notes_seen += 1
+            self._record_placement(project_id, note, collection_keys, tree)
             return
         text = html_to_text(note.note)
         if not text:
@@ -514,6 +520,47 @@ class Importer:
             origin_note_key=note.key,
             zotero_note_key=note.key,
         )
+
+    def _record_placement(
+        self,
+        project_id: str,
+        note: Note,
+        collection_keys: set[str],
+        tree: CollectionTree,
+    ) -> None:
+        """Where a card's note now sits is the researcher's grouping.
+
+        A note living in both Inbox and a theme is encountered once per
+        collection during the walk, so this counts cards, not sightings. Inbox
+        is a holding pen rather than a group: a card only in Inbox is still
+        unsorted, and says so.
+        """
+        row = self.conn.execute(
+            "SELECT id FROM card WHERE project_id = ? AND zotero_note_key = ?",
+            (project_id, note.key),
+        ).fetchone()
+        if row is None:
+            # A note from another project, or from a database this one has
+            # never seen. Not ours to interpret.
+            self.stats.unknown_kj_notes += 1
+            return
+
+        # `note.collections` is the note's own list, which is complete;
+        # collection_keys is only where the walk happened to meet it.
+        keys = [k for k in (note.collections or collection_keys) if k in tree]
+        meaningful = [k for k in keys if tree.get(k).name != INBOX_NAME]
+        meaningful.sort(key=lambda k: (-tree.get(k).depth, tree.get(k).path))
+        path = tree.get(meaningful[0]).path if meaningful else None
+
+        self.conn.execute(
+            "UPDATE card SET kj_collection_keys_json = ?, kj_path = ? WHERE id = ?",
+            (json.dumps(keys), path, row["id"]),
+        )
+        if row["id"] not in self._placed:
+            self._placed.add(row["id"])
+            self.stats.placements_read += 1
+            if not meaningful:
+                self.stats.still_in_inbox += 1
 
     # -- cards -------------------------------------------------------------
 
