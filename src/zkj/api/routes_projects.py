@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..cards import summary
 from ..importer import ProjectConflict, run_import
+from ..progress import progress
 from ..zotero import ZoteroClient
 from ..zotero.tree import CollectionTree
 from .deps import get_client, get_db
@@ -117,6 +118,39 @@ def _import(
         ),
         stats=stats.as_dict(),
     )
+
+
+@router.get("/{project_id}/progress")
+def get_progress(
+    project_id: str,
+    conn: sqlite3.Connection = Depends(get_db),
+    client: ZoteroClient = Depends(get_client),
+) -> dict:
+    """Which step of the loop this project is on, and what is left on it."""
+    row = _fetch(conn, project_id)
+    try:
+        writes = client.server_info().writes_available
+    except Exception:
+        writes = False
+    return progress(conn, row, writes_available=writes).as_dict()
+
+
+@router.delete("/{project_id}")
+def delete_project(
+    project_id: str, conn: sqlite3.Connection = Depends(get_db)
+) -> dict:
+    """Forget a project here. Nothing in Zotero is touched.
+
+    Notes this app wrote stay where they are — deleting them is a separate,
+    explicit act, and one this app will not do behind a different button.
+    """
+    _fetch(conn, project_id)
+    left_behind = conn.execute(
+        "SELECT COUNT(*) FROM card WHERE project_id = ? AND materialized_at IS NOT NULL",
+        (project_id,),
+    ).fetchone()[0]
+    conn.execute("DELETE FROM project WHERE id = ?", (project_id,))
+    return {"deleted": True, "notes_left_in_zotero": left_behind}
 
 
 @router.get("/{project_id}", response_model=ProjectOut)

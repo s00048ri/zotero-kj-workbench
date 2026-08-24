@@ -216,6 +216,28 @@ export interface Structure {
   warning: string | null;
 }
 
+export interface ProgressStep {
+  key: "read" | "notes" | "sort" | "label" | "compare";
+  done: boolean;
+  detail: string;
+  count: number;
+}
+
+export interface Progress {
+  current: ProgressStep["key"];
+  steps: ProgressStep[];
+  counts: Record<string, number>;
+  kj_root_key: string | null;
+  kj_inbox_key: string | null;
+  writes_available: boolean;
+  last_import_at: string | null;
+}
+
+/** Jump straight to a collection in the Zotero window. */
+export function zoteroCollectionUrl(key: string): string {
+  return `zotero://select/library/collections/${key}`;
+}
+
 export class ApiError extends Error {
   remedy: string | null;
   status: number;
@@ -328,6 +350,13 @@ export const api = {
     request<MaterializeResult>(`/api/projects/${projectId}/groups/push`, {
       method: "POST",
     }),
+
+  progress: (projectId: string) => request<Progress>(`/api/projects/${projectId}/progress`),
+  deleteProject: (projectId: string) =>
+    request<{ deleted: boolean; notes_left_in_zotero: number }>(
+      `/api/projects/${projectId}`,
+      { method: "DELETE" },
+    ),
 
   structure: (projectId: string, params: { basis?: string; k?: number } = {}) =>
     request<Structure>(`/api/projects/${projectId}/structure${query(params)}`),

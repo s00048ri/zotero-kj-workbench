@@ -86,7 +86,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .topbar {
   display: flex;
   align-items: baseline;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
   padding: 0.85rem 1.5rem;
   border-bottom: 1px solid var(--rule);
   background: color-mix(in srgb, var(--board) 88%, var(--leaf));
@@ -102,7 +103,16 @@ button, input, select, textarea { font: inherit; color: inherit; }
   margin: 0;
 }
 
-.tabs { display: flex; gap: 0.25rem; margin-left: auto; }
+.tabs { display: flex; gap: 0.25rem; margin-left: auto; flex-wrap: wrap; }
+
+/* Beside a Zotero window the bar has to give way: the project name and the
+   connection label go first, never a tab. */
+@media (max-width: 56rem) {
+  .topbar { gap: 0.4rem 0.75rem; padding: 0.7rem 1rem; }
+  .topbar > .meta { display: none; }
+  .tab { padding: 0.3rem 0.45rem; }
+  .connection span:not(.dot) { display: none; }
+}
 
 .tab {
   background: none;
@@ -543,3 +553,93 @@ table.contingency td { padding: 0.3rem 0.5rem; text-align: center;
 .misfit { border-left: 3px solid var(--caution); padding-left: 0.9rem; margin-bottom: 1.25rem; }
 .misfit .move { font-size: 0.9rem; color: var(--graphite); margin-bottom: 0.3rem; }
 .misfit .text { font-family: var(--serif); }
+
+/* -- the loop ------------------------------------------------------------ */
+
+.loop { list-style: none; margin: 2rem 0; padding: 0; }
+
+.step {
+  display: grid;
+  grid-template-columns: 1.9rem 1fr;
+  gap: 0.9rem;
+  padding: 0 0 1.6rem;
+  position: relative;
+}
+/* a rule joining the steps, so the loop reads as one path */
+.step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 0.92rem;
+  top: 1.9rem;
+  bottom: 0.3rem;
+  border-left: 1px solid var(--rule-strong);
+}
+
+.step .marker {
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 50%;
+  border: 1px solid var(--rule-strong);
+  display: grid;
+  place-items: center;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--graphite);
+  background: var(--board);
+  z-index: 1;
+}
+.step[data-state="done"] .marker {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--board);
+}
+.step[data-state="now"] .marker {
+  background: var(--margin);
+  border-color: var(--margin);
+  color: var(--on-margin);
+}
+
+.step h3 { margin: 0.2rem 0 0.2rem; font-family: var(--serif); font-size: 1.08rem; }
+.step .detail { color: var(--graphite); margin: 0 0 0.5rem; font-size: 0.95rem; }
+.step[data-state="later"] h3,
+.step[data-state="later"] .detail { opacity: 0.55; }
+.step[data-state="done"] h3 { color: var(--graphite); font-size: 1rem; }
+
+.step-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.step[data-state="later"] .step-actions .button { background: none;
+  color: var(--graphite); border: 1px solid var(--rule-strong); }
+.step .button { text-decoration: none; display: inline-block; }
+a.button { color: var(--board); }
+.step[data-state="later"] a.button { color: var(--graphite); }
+
+.aside-block {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  margin-top: 1rem;
+}
+
+.project-list { list-style: none; margin: 0 0 2.5rem; padding: 0; }
+.project-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.project-list .open {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  background: none;
+  border: 0;
+  padding: 0.3rem 0.4rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.project-list .open:hover { background: var(--rule); }
+.project-list .name { font-family: var(--serif); font-size: 1.02rem; }

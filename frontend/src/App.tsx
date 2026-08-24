@@ -4,15 +4,18 @@ import { api } from "./lib/api";
 import Connect from "./screens/Connect";
 import ProjectScreen from "./screens/Project";
 import Cards from "./screens/Cards";
+import Steps from "./screens/Steps";
 import Groups from "./screens/Groups";
 import Structure from "./screens/Structure";
 
-type Screen = "connect" | "project" | "cards" | "groups" | "structure";
+type Screen = "connect" | "project" | "cards" | "groups" | "structure" | "steps";
 
 const LAST_PROJECT = "zkj.project";
 
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("project");
+  const [screen, setScreen] = useState<Screen>(
+    localStorage.getItem(LAST_PROJECT) ? "steps" : "project",
+  );
   const [projectId, setProjectId] = useState<string | null>(
     () => localStorage.getItem(LAST_PROJECT),
   );
@@ -49,10 +52,11 @@ export default function App() {
         <nav className="tabs">
           <button
             className="tab"
-            aria-current={screen === "project" ? "page" : undefined}
-            onClick={() => setScreen("project")}
+            aria-current={screen === "steps" ? "page" : undefined}
+            disabled={!project}
+            onClick={() => setScreen("steps")}
           >
-            Project
+            Steps
           </button>
           <button
             className="tab"
@@ -80,6 +84,13 @@ export default function App() {
           </button>
           <button
             className="tab"
+            aria-current={screen === "project" ? "page" : undefined}
+            onClick={() => setScreen("project")}
+          >
+            Projects
+          </button>
+          <button
+            className="tab"
             aria-current={screen === "connect" ? "page" : undefined}
             onClick={() => setScreen("connect")}
           >
@@ -92,7 +103,7 @@ export default function App() {
           title={status.data?.message ?? "Checking Zotero…"}
         >
           <span className="dot" data-state={state} />
-          {stateLabel}
+          <span>{stateLabel}</span>
         </button>
       </header>
 
@@ -104,10 +115,19 @@ export default function App() {
             selectedId={projectId}
             onSelect={(id) => {
               setProjectId(id);
-              setScreen("cards");
+              setScreen("steps");
             }}
           />
         )}
+        {screen === "steps" &&
+          (project ? (
+            <Steps
+              project={project}
+              go={(next) => setScreen(next)}
+            />
+          ) : (
+            <p className="spinner">Opening the project…</p>
+          ))}
         {screen === "cards" &&
           (project ? (
             <Cards project={project} />

@@ -46,9 +46,12 @@ export default function ProjectScreen({ projects, selectedId, onSelect }: Props)
     onError: (e) => setError(e instanceof ApiError ? e.message : String(e)),
   });
 
-  const reimport = useMutation({
-    mutationFn: (id: string) => api.reimport(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["projects"] }),
+  const remove = useMutation({
+    mutationFn: (id: string) => api.deleteProject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setError(null);
+    },
     onError: (e) => setError(e instanceof ApiError ? e.message : String(e)),
   });
 
@@ -62,36 +65,33 @@ export default function ProjectScreen({ projects, selectedId, onSelect }: Props)
       {projects.length > 0 && (
         <>
           <h2>Your projects</h2>
-          <ul className="tree" style={{ maxHeight: "none", marginBottom: "2.5rem" }}>
+          <ul className="project-list">
             {projects.map((p) => (
               <li key={p.id}>
-                <button
-                  aria-pressed={p.id === selectedId}
-                  onClick={() => onSelect(p.id)}
-                >
-                  <span>{p.name}</span>
+                <button className="open" onClick={() => onSelect(p.id)}>
+                  <span className="name">{p.name}</span>
                   <span className="meta">{p.root_path ?? p.root_collection_key}</span>
-                  <span className="meta count">
-                    {p.counts.quotes ?? 0} quotes · {p.counts.ideas ?? 0} of your own
+                  <span className="meta">
+                    {p.counts.quotes ?? 0} passages · {p.counts.ideas ?? 0} in your
+                    own words
+                    {p.counts.in_zotero ? ` · ${p.counts.in_zotero} in Zotero` : ""}
                   </span>
+                </button>
+                <button
+                  className="button quiet"
+                  onClick={() => {
+                    const left = p.counts.in_zotero ?? 0;
+                    const warning = left
+                      ? `Forget “${p.name}”? ${left} notes this app wrote will stay in Zotero — take the batch back first if you want them gone.`
+                      : `Forget “${p.name}”? Nothing in Zotero is touched.`;
+                    if (confirm(warning)) remove.mutate(p.id);
+                  }}
+                >
+                  Forget
                 </button>
               </li>
             ))}
           </ul>
-          <p className="meta">
-            {selectedId && (
-              <button
-                className="button quiet"
-                disabled={reimport.isPending}
-                onClick={() => reimport.mutate(selectedId)}
-              >
-                {reimport.isPending ? "Reading Zotero…" : "Re-read this collection"}
-              </button>
-            )}
-            {reimport.data && (
-              <> {reimport.data.stats.quote_cards} new quotes, {reimport.data.stats.updated} changed</>
-            )}
-          </p>
         </>
       )}
 
@@ -143,6 +143,18 @@ export default function ProjectScreen({ projects, selectedId, onSelect }: Props)
           {chosen && (
             <>
               <h3>{chosen.path}</h3>
+              {projects.some((p) => p.root_collection_key === chosen.key) && (
+                <p className="notice">
+                  You already have a project on this collection:{" "}
+                  {projects
+                    .filter((p) => p.root_collection_key === chosen.key)
+                    .map((p) => p.name)
+                    .join(", ")}
+                  . Making a second one is fine — two papers can come out of one
+                  reading — but the cards are kept apart, and notes written into
+                  Zotero are tagged with the project that wrote them.
+                </p>
+              )}
               {preview.isLoading && <p className="spinner">Counting what is in there…</p>}
               {counts && (
                 <>

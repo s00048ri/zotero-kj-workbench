@@ -226,3 +226,31 @@ def test_structure_says_plainly_when_there_is_too_little_to_compare(api):
     response = client.get(f"/api/projects/{pid}/structure")
     assert response.status_code == 422
     assert "cards" in response.json()["detail"]
+
+
+def test_progress_names_the_next_step(api):
+    _fake, _conn, client, pid = api()
+    body = client.get(f"/api/projects/{pid}/progress").json()
+    assert body["current"] == "notes"
+    assert [s["key"] for s in body["steps"]] == [
+        "read", "notes", "sort", "label", "compare"
+    ]
+    assert body["counts"]["pending_notes"] == 5
+
+
+def test_progress_moves_on_once_the_notes_exist(api):
+    _fake, _conn, client, pid = api()
+    client.post(f"/api/projects/{pid}/notes", json={})
+    body = client.get(f"/api/projects/{pid}/progress").json()
+    assert body["current"] == "sort"
+    assert body["kj_inbox_key"]
+
+
+def test_a_project_can_be_forgotten_without_touching_zotero(api):
+    fake, _conn, client, pid = api()
+    client.post(f"/api/projects/{pid}/notes", json={})
+    body = client.delete(f"/api/projects/{pid}").json()
+    assert body["deleted"] is True
+    assert body["notes_left_in_zotero"] == 5
+    assert len(fake.created_items) == 5  # still in Zotero, as promised
+    assert client.get(f"/api/projects/{pid}").status_code == 404
