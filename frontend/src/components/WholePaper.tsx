@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type DraftResult, type PromptOut } from "../lib/api";
 import PromptPanel from "./PromptPanel";
+import SendToClaude from "./SendToClaude";
 import ValidationReport from "./ValidationReport";
 
 /* From the groups straight to a paper.
@@ -101,10 +102,14 @@ export default function WholePaper({ projectId }: { projectId: string }) {
               ? "Build the prompt"
               : "Build the reading"}
         </button>
+        <SendToClaude
+          projectId={projectId}
+          body={{ kind: "paper", mode, quoting }}
+          label={mode === "draft" ? "Send it to Claude" : "Ask Claude"}
+        />
         {drafts.data?.length ? (
           <span className="meta">
-            {drafts.data.length} draft{drafts.data.length === 1 ? "" : "s"} pasted
-            back so far
+            {drafts.data.length} draft{drafts.data.length === 1 ? "" : "s"} kept so far
           </span>
         ) : null}
       </p>

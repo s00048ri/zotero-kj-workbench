@@ -769,3 +769,7 @@ a.button { color: var(--board); }
 
 h3 .meta { font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; }
 .step[data-state="later"] .marker { font-size: 1rem; }
+
+.draft-details { margin: 0.75rem 0; }
+.draft-details summary { cursor: pointer; font-size: 0.9rem; color: var(--graphite); }
+.draft-details .draft-read { margin-top: 0.6rem; max-height: 30rem; overflow: auto; }

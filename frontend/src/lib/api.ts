@@ -99,6 +99,7 @@ export interface Card {
   /** A highlight a page break split in two, and the halves it came from. */
   joined_text: string | null;
   joined_ids: string[];
+  joined_locator: string | null;
   is_continuation: boolean;
 }
 
@@ -335,6 +336,32 @@ export interface DraftResult {
   validation: ValidationOut;
   draft: { id: string; version: number } | null;
   markdown: string;
+}
+
+export interface LlmStatus {
+  ready: boolean;
+  reason: string;
+  model: string;
+  source: string | null;
+  base_url: string | null;
+  remedy: string | null;
+}
+
+export interface SendResult {
+  prompt: { id: string; chars: number; tokens: number };
+  llm: {
+    model: string;
+    stop_reason: string | null;
+    input_tokens: number;
+    output_tokens: number;
+    cost_usd: number;
+    refusal: string | null;
+    warnings: string[];
+  };
+  validation: ValidationOut | null;
+  draft: { id: string; version: number } | null;
+  markdown: string | null;
+  content?: string;
 }
 
 export class ApiError extends Error {
@@ -593,6 +620,25 @@ export const api = {
     request<{ id: string; version: number; created_at: string }[]>(
       `/api/projects/${projectId}/drafts`,
     ),
+
+  llm: () => request<LlmStatus>("/api/llm"),
+  setLlmKey: (key: string) =>
+    request<LlmStatus>("/api/llm/key", { method: "PUT", body: JSON.stringify({ key }) }),
+  clearLlmKey: () => request<LlmStatus>("/api/llm/key", { method: "DELETE" }),
+  send: (
+    projectId: string,
+    body: {
+      kind: string;
+      section_id?: string;
+      mode?: string;
+      quoting?: string;
+      effort?: string;
+    },
+  ) =>
+    request<SendResult>(`/api/projects/${projectId}/send`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   paperUrl: (projectId: string) => `/api/projects/${projectId}/paper.md`,
 };

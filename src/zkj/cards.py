@@ -280,5 +280,6 @@ def citation_of(card: dict[str, Any]) -> str:
     year = card.get("source_year")
     # "Smith 2025" is a name and a date; "A Title, 2025" needs the comma.
     head = f"{name} {year}" if author and year else ", ".join(filter(None, [name, year]))
-    locator = locator_of(card).render()
+    # A passage joined across a page break is on both pages.
+    locator = card.get("joined_locator") or locator_of(card).render()
     return ", ".join(filter(None, [head, locator]))

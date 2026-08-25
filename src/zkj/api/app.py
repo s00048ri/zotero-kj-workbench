@@ -20,6 +20,7 @@ from . import (
     routes_cards,
     routes_compose,
     routes_groups,
+    routes_llm,
     routes_projects,
     routes_writes,
 )
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_writes.router)
     app.include_router(routes_groups.router)
     app.include_router(routes_compose.router)
+    app.include_router(routes_llm.router)
 
     @app.get("/api/status", response_model=ConnectionStatus)
     def status(client: ZoteroClient = Depends(get_client)) -> ConnectionStatus:

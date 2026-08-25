@@ -176,6 +176,7 @@ class CardOut(BaseModel):
     # was assembled from.
     joined_text: str | None = None
     joined_ids: list[str] = []
+    joined_locator: str | None = None
     is_continuation: bool = False
 
 

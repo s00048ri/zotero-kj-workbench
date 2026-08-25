@@ -12,6 +12,11 @@ dependencies = [
     "numpy>=1.26",
 ]
 
+[project.optional-dependencies]
+# Sending a prompt to Claude directly is opt-in. Without this the app still
+# builds every prompt and checks every draft — it just cannot post one for you.
+llm = ["anthropic>=0.69"]
+
 [project.scripts]
 zkj = "zkj.__main__:main"
 

@@ -203,3 +203,65 @@ def test_the_cards_screen_shows_the_whole_passage(project):
     joined = next(c for c in page.cards if c["origin_key"] == "annotation:SPLITA:quote")
     assert "close these windows?" in joined["joined_text"]
     assert len(joined["joined_ids"]) == 2
+
+
+def test_a_joined_passage_cites_both_pages(project):
+    """The quotation is on both pages; citing only the first is wrong for half
+    of what is being quoted."""
+    from zkj.cards import CardFilters, citation_of, list_cards
+
+    _fake, conn, _client, pid, _stats = project
+    page = list_cards(conn, pid, CardFilters(search="close these"))
+    joined = next(c for c in page.cards if c["origin_key"] == "annotation:SPLITA:quote")
+    assert joined["joined_locator"] == "pp. 1–2"
+    assert citation_of(joined).endswith("pp. 1–2")
+
+
+def test_two_halves_on_the_same_page_still_cite_one_page():
+    from zkj.continuations import joined_locator
+
+    same = [
+        {"locator_type": "page", "locator_value": "7"},
+        {"locator_type": "page", "locator_value": "7"},
+    ]
+    assert joined_locator(same) == "p. 7"
+
+
+def test_a_span_of_roman_numerals_works():
+    from zkj.continuations import joined_locator
+
+    assert joined_locator([
+        {"locator_type": "page", "locator_value": "xiv"},
+        {"locator_type": "page", "locator_value": "xv"},
+    ]) == "pp. xiv–xv"
+
+
+def test_a_span_is_not_invented_where_the_locators_are_not_pages():
+    from zkj.continuations import joined_locator
+
+    assert joined_locator([
+        {"locator_type": "chapter", "locator_value": "Regulatory design"},
+        {"locator_type": "chapter", "locator_value": "Regulatory design"},
+    ]) is None
+    assert joined_locator([
+        {"locator_type": "page", "locator_value": "1"},
+        {"locator_type": "none", "locator_value": ""},
+    ]) is None
+
+
+def test_an_estimated_span_says_so():
+    from zkj.continuations import joined_locator
+
+    assert joined_locator([
+        {"locator_type": "page", "locator_value": "10", "locator_estimated": 1},
+        {"locator_type": "page", "locator_value": "11", "locator_estimated": 1},
+    ]) == "pp. 10–11 (est.)"
+
+
+def test_the_markdown_export_spans_the_pages_too(project):
+    from zkj.validate import to_markdown
+
+    _fake, conn, _client, pid, _stats = project
+    head = card(conn, "annotation:SPLITA:quote")
+    markdown = to_markdown(conn, pid, None, f"x [[CITE:{head['human_id']}]]")
+    assert "pp. 1–2]" in markdown

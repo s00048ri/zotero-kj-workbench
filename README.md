@@ -162,3 +162,20 @@ A draft pasted back is checked for four things:
 Drafts are versioned and never overwritten. Markdown export emits Better
 BibTeX-style citekeys — `[@smith2025, p. 132]` — so the file goes into pandoc
 or Zotero without every citation being redone by hand.
+
+## Sending prompts to Claude, if you want to
+
+Copying the prompt into a chat is the way this is meant to be used: it costs
+nothing, needs no key, and lets you read exactly what is being sent before it
+goes. Sending it from the app is optional and changes only who does the
+pasting — the same prompt goes out, and what comes back is checked against the
+same evidence by the same validator.
+
+```
+uv pip install -e ".[llm]"
+ANTHROPIC_API_KEY=… .venv/bin/python -m zkj
+```
+
+or `ant auth login`, or paste a key into the Connect screen — that one is held
+in memory for the run and is never written to the database, to a file, or to a
+log.

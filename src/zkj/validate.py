@@ -576,7 +576,11 @@ def to_markdown(
         if not citekey:
             return f"<!-- {human_id}: no source -->"
         locator = ""
-        if card["locator_type"] == "page" and not card["locator_estimated"]:
+        joined = card.get("joined_locator")
+        if joined and not card["locator_estimated"]:
+            # already rendered as "p. 1" or "pp. 1–2"
+            locator = joined
+        elif card["locator_type"] == "page" and not card["locator_estimated"]:
             locator = f"p. {card['locator_value']}"
         elif card["locator_type"] == "chapter":
             locator = f"ch. {card['locator_value']}"

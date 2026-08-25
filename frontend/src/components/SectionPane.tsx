@@ -9,6 +9,7 @@ import {
   type Section,
 } from "../lib/api";
 import PromptPanel from "./PromptPanel";
+import SendToClaude from "./SendToClaude";
 import ValidationReport from "./ValidationReport";
 
 const MODES: Evidence["citation_mode"][] = [
@@ -268,6 +269,10 @@ export default function SectionPane({
         >
           {build.isPending ? "Building…" : "Build the prompt"}
         </button>
+        <SendToClaude
+          projectId={projectId}
+          body={{ kind: "section", section_id: section.id }}
+        />
         <span className="meta">
           Paste it into a chat, then bring the answer back below.
         </span>

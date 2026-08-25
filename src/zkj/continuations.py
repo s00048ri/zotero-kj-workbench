@@ -82,6 +82,26 @@ def chain(conn: sqlite3.Connection, card_id: str) -> list[dict[str, Any]]:
         current = row["id"]
 
 
+def joined_locator(parts: list[dict[str, Any]]) -> str | None:
+    """“pp. 1–2” for a passage that ran across a page break.
+
+    A joined quotation is on both pages, and citing only the first is a wrong
+    page reference for half of it. Only pages span: a chapter locator or a
+    missing one falls back to whatever the first half had.
+    """
+    if len(parts) < 2:
+        return None
+    if any((p.get("locator_type") or "none") != "page" for p in parts):
+        return None
+    values = [str(p.get("locator_value") or "").strip() for p in parts]
+    if not all(values):
+        return None
+    estimated = " (est.)" if any(p.get("locator_estimated") for p in parts) else ""
+    if values[0] == values[-1]:
+        return f"p. {values[0]}{estimated}"
+    return f"pp. {values[0]}–{values[-1]}{estimated}"
+
+
 def attach(conn: sqlite3.Connection, cards: list[dict[str, Any]]) -> None:
     """Give each card its joined text, and mark the halves that are not starts.
 
@@ -98,9 +118,11 @@ def attach(conn: sqlite3.Connection, cards: list[dict[str, Any]]) -> None:
                 [card.get("text_raw") or card["text"]]
                 + [r["text_raw"] or r["text"] for r in rest]
             )
+            card["joined_locator"] = joined_locator([card, *rest])
         else:
             card["joined_ids"] = [card["human_id"]]
             card["joined_text"] = card["text"]
+            card["joined_locator"] = None
 
 
 def quotation_of(card: dict[str, Any]) -> str:
