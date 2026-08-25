@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- a page, and a note tied to it in the margin -->
+  <rect width="32" height="32" rx="5" fill="#e4e6e1"/>
+  <rect x="6" y="5" width="20" height="13" rx="1.5" fill="#fafaf7" stroke="#191c1f" stroke-width="1.2"/>
+  <path d="M9 9h14M9 12h14M9 15h9" stroke="#191c1f" stroke-width="1.1" stroke-linecap="round" opacity=".55"/>
+  <rect x="11" y="21" width="16" height="7" rx="1.5" fill="#232b3a"/>
+  <path d="M8 18v7.5h3" stroke="#191c1f" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+</svg>

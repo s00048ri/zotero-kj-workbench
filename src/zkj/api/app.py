@@ -116,6 +116,13 @@ def create_app() -> FastAPI:
     def index() -> FileResponse:
         return FileResponse(index_html if index_html.exists() else STATIC_DIR / "status.html")
 
+    @app.get("/favicon.ico", include_in_schema=False)
+    @app.get("/favicon.svg", include_in_schema=False)
+    def favicon() -> FileResponse:
+        # Browsers ask for this unprompted; answering 404 puts a false alarm in
+        # the log of a tool whose whole job is to report real ones.
+        return FileResponse(STATIC_DIR / "favicon.svg", media_type="image/svg+xml")
+
     @app.get("/status", include_in_schema=False)
     def status_page() -> FileResponse:
         return FileResponse(STATIC_DIR / "status.html")
