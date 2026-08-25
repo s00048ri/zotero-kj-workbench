@@ -23,6 +23,8 @@ const TITLES: Record<ProgressStep["key"], string> = {
   sort: "Sort them into groups — in Zotero",
   label: "Say what each group claims",
   compare: "Set your outline against your evidence",
+  question: "Choose the question this paper answers",
+  write: "Draft each section from its own evidence",
 };
 
 function ImportSummary({ result }: { result: ImportResult }) {
@@ -47,7 +49,7 @@ export default function Steps({
   go,
 }: {
   project: Project;
-  go: (screen: "cards" | "groups" | "structure" | "project") => void;
+  go: (screen: "cards" | "groups" | "structure" | "project" | "compose") => void;
 }) {
   const queryClient = useQueryClient();
   const [writing, setWriting] = useState(false);
@@ -131,6 +133,16 @@ export default function Steps({
     compare: (
       <button className="button" onClick={() => go("structure")}>
         Compare
+      </button>
+    ),
+    question: (
+      <button className="button" onClick={() => go("compose")}>
+        {counts.questions ? "Choose a question" : "Write the candidates"}
+      </button>
+    ),
+    write: (
+      <button className="button" onClick={() => go("compose")}>
+        {counts.sections ? "Open the outline" : "Start the outline"}
       </button>
     ),
   };

@@ -62,6 +62,10 @@ src/zkj/materialize.py  cards into notes, and taking a batch back
 src/zkj/annotate.py your own note on a passage, kept in step with Zotero
 src/zkj/groups.py   the collections you filed cards into, and their labels
 src/zkj/structure.py  your outline against your evidence
+src/zkj/compose.py  question, claims, sections, and what each card does
+src/zkj/prompts.py  the four blocks of text you paste into a chat
+src/zkj/validate.py checking a draft against the evidence it was given
+src/zkj/export.py   the paper as Markdown, with citekeys
 frontend/           React + TypeScript; builds into src/zkj/api/web/dist
 ```
 
@@ -96,6 +100,8 @@ Workbench: re-read → groups recovered
 Workbench: write one proposition per group
 Workbench: push labels back to Zotero
 Workbench: structure comparison → cards worth re-reading
+Workbench: build a prompt → paste into a chat → paste the draft back
+Workbench: check it, then export Markdown with citekeys
 ```
 
 Every step is re-runnable. Re-reading never destroys work.
@@ -110,4 +116,27 @@ Every step is re-runnable. Re-reading never destroys work.
 | M4 | Placement read-back and Groups | **done** |
 | M5 | Add my note | **done** |
 | M6 | Structure comparison | **done** |
-| M7 | Compose and prompt export | next |
+| M7 | Compose and prompt export | **done** |
+
+## Writing
+
+Nothing is sent anywhere. The app builds a complete block of text you paste
+into a chat yourself, and you paste the draft back for checking. There are four
+kinds: groups → themes, themes → questions, an outline, and a section draft.
+
+A section prompt contains only the cards you assigned to that section, says
+which are the source's words and which are your own, and instructs the model to
+write `[EVIDENCE NEEDED: …]` rather than fill a gap.
+
+A draft pasted back is checked for four things:
+
+* citations of cards that were never in the section's evidence;
+* quotations altered beyond spacing and quotation marks, with the alteration
+  shown;
+* **paraphrases that track the original's wording** — the risk with no
+  quotation marks around it, and the one worth reading first;
+* gaps the model was asked to leave open, listed as work.
+
+Drafts are versioned and never overwritten. Markdown export emits Better
+BibTeX-style citekeys — `[@smith2025, p. 132]` — so the file goes into pandoc
+or Zotero without every citation being redone by hand.

@@ -415,3 +415,33 @@ def test_a_quotation_typed_from_the_page_also_passes(section):
     draft = f'Smith writes that "{q["text_raw"]}" [[CITE:{q["human_id"]}]].'
     result = validate(conn, p["id"], s["id"], draft)
     assert not [f for f in result.findings if f.kind == "quotation_altered"]
+
+
+def test_a_passage_containing_quotation_marks_is_still_recognised(section):
+    """A quotation with a quotation inside it cannot be pulled out as one
+    span, so the source's words are looked for in the draft as a whole."""
+    conn, p, s, q, _other, _idea = section
+    conn.execute(
+        "UPDATE card SET text = ?, text_raw = ? WHERE id = ?",
+        (
+            'The third frame is the “competition frame,” which borrows its '
+            "urgency from security language.",
+            None,
+            q["id"],
+        ),
+    )
+    card = quote(conn)
+    draft = f'She writes: "{card["text"]}" [[CITE:{card["human_id"]}]].'
+    result = validate(conn, p["id"], s["id"], draft)
+    assert not [f for f in result.findings if f.kind == "quotation_altered"]
+
+    altered = card["text"].replace("borrows", "steals")
+    bad = f'She writes: "{altered}" [[CITE:{card["human_id"]}]].'
+    finding = next(
+        f
+        for f in validate(conn, p["id"], s["id"], bad).findings
+        if f.kind == "quotation_altered"
+    )
+    # the diff is against the stretch the draft was quoting, not the whole card
+    assert "borrows" in finding.detail and "steals" in finding.detail
+    assert finding.detail.count("\n") < 8

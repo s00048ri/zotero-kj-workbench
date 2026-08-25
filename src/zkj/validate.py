@@ -32,10 +32,14 @@ from .store import insert, now_iso
 
 CITE_RE = re.compile(r"\[\[CITE:\s*([A-Za-z0-9\-]+)\s*\]\]")
 EVIDENCE_NEEDED_RE = re.compile(r"\[EVIDENCE NEEDED:?\s*([^\]]*)\]", re.I)
+# A quotation nests: a passage quoted with straight marks often contains
+# curly ones, and vice versa. Matching each kind against its own closing mark
+# keeps the outer span whole instead of stopping at the first inner quote.
 QUOTE_SPAN_RE = re.compile(
-    r"[“\"]([^”\"]{12,})[”\"]"      # straight or curly double quotes
-    r"|「([^」]{6,})」"              # Japanese corner brackets
-    r"|『([^』]{6,})』"
+    r"\"([^\"]{12,})\""            # straight double quotes
+    r"|“([^“”]{12,})”"              # curly double quotes
+    r"|「([^「」]{6,})」"             # Japanese corner brackets
+    r"|『([^『』]{6,})』"
 )
 
 # How far from a marker a quotation may sit and still be its quotation.
@@ -117,11 +121,18 @@ def markers(text: str) -> list[tuple[str, int, int]]:
 
 
 def quoted_spans(text: str) -> list[tuple[str, int, int]]:
-    spans = []
+    """Every quoted stretch, longest first where two overlap."""
+    spans: list[tuple[str, int, int]] = []
     for match in QUOTE_SPAN_RE.finditer(text):
         body = next(g for g in match.groups() if g is not None)
         spans.append((body, match.start(), match.end()))
-    return spans
+    spans.sort(key=lambda s: (s[1], -(s[2] - s[1])))
+    kept: list[tuple[str, int, int]] = []
+    for span in spans:
+        if any(k[1] <= span[1] and span[2] <= k[2] for k in kept):
+            continue  # nested inside one already taken
+        kept.append(span)
+    return kept
 
 
 def _ngrams(text: str) -> tuple[set[str], list[str]]:
@@ -151,6 +162,25 @@ def longest_shared_run(source: str, draft: str) -> tuple[int, str]:
     )
     piece = a[match.a : match.a + match.size]
     return match.size, (piece if isinstance(piece, str) else " ".join(piece))
+
+
+def align(source: str, span: str) -> str:
+    """The stretch of the source the draft's quotation was trying to be.
+
+    A draft usually quotes part of a passage. Diffing a seven-word quotation
+    against a sixty-word source reports fifty words "dropped", which is true
+    and useless; diffing it against the stretch it aligns to shows the actual
+    alteration.
+    """
+    a = source.split()
+    b = span.split()
+    if len(a) <= len(b):
+        return source
+    match = difflib.SequenceMatcher(None, a, b, autojunk=False).find_longest_match(
+        0, len(a), 0, len(b)
+    )
+    start = max(0, match.a - match.b)
+    return " ".join(a[start : start + len(b)])
 
 
 def quote_diff(expected: str, found: str) -> str:
@@ -295,12 +325,23 @@ def _check_direct_quote(
         quoted = normalise_for_comparison(candidate)
         if any(quoted in form or form in quoted for form in forms):
             return  # an exact quotation, whole or in part
-    closest = max(
-        candidates,
-        key=lambda c: difflib.SequenceMatcher(
-            None, normalise_for_comparison(c), original
-        ).ratio(),
+
+    # A passage that itself contains quotation marks cannot be extracted as one
+    # span, so check the draft as a whole: if the source's words are in it
+    # unaltered, the quotation is intact however the marks nest.
+    whole = normalise_for_comparison(draft)
+    if any(form in whole for form in forms):
+        return
+
+    closest = normalise_for_comparison(
+        max(
+            candidates,
+            key=lambda c: difflib.SequenceMatcher(
+                None, normalise_for_comparison(c), original
+            ).ratio(),
+        )
     )
+    aligned = align(original, closest)
     result.findings.append(
         Finding(
             kind="quotation_altered",
@@ -311,9 +352,9 @@ def _check_direct_quote(
                 f"source says."
             ),
             detail=(
-                f"source: “{original}”\n"
-                f"draft:  “{normalise_for_comparison(closest)}”\n"
-                f"{quote_diff(original, normalise_for_comparison(closest))}"
+                f"source: “{aligned}”\n"
+                f"draft:  “{closest}”\n"
+                f"{quote_diff(aligned, closest)}"
             ),
         )
     )

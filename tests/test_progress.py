@@ -108,3 +108,38 @@ def test_progress_carries_the_keys_needed_to_open_zotero(setup):
     result = progress(conn, project)
     assert result.kj_inbox_key
     assert result.kj_root_key
+
+
+def test_after_labelling_the_loop_asks_for_a_research_question(setup):
+    from zkj.groups import save_label
+
+    _fake, conn, client, project, session = setup
+    materialize(conn, client, session, project)
+    conn.execute(
+        "UPDATE card SET kj_path = 'P/_KJ/Theme', kj_collection_keys_json = '[\"T\"]' "
+        "WHERE kind = 'quote' AND materialized_at IS NOT NULL"
+    )
+    save_label(conn, project["id"], "P/_KJ/Theme", "A proposition.")
+    result = progress(conn, project)
+    assert result.current == "question"
+    assert step(result, "label").done is True
+
+
+def test_with_a_question_chosen_the_loop_asks_for_the_writing(setup):
+    from zkj.compose import add_question, choose_question
+    from zkj.groups import save_label
+
+    _fake, conn, client, project, session = setup
+    materialize(conn, client, session, project)
+    conn.execute(
+        "UPDATE card SET kj_path = 'P/_KJ/Theme', kj_collection_keys_json = '[\"T\"]' "
+        "WHERE kind = 'quote' AND materialized_at IS NOT NULL"
+    )
+    save_label(conn, project["id"], "P/_KJ/Theme", "A proposition.")
+    question = add_question(conn, project["id"], "Does capacity bind?")
+    choose_question(conn, project["id"], question["id"])
+
+    result = progress(conn, project)
+    assert result.current == "write"
+    assert step(result, "question").done is True
+    assert step(result, "question").detail == "Does capacity bind?"

@@ -21,9 +21,10 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .cards import summary
+from .compose import chosen_question, list_sections
 from .groups import group_summary
 
-STEPS = ("read", "notes", "sort", "label", "compare")
+STEPS = ("read", "notes", "sort", "label", "compare", "question", "write")
 
 
 @dataclass
@@ -182,6 +183,54 @@ def progress(
         )
     )
 
+    question = chosen_question(conn, project_id)
+    candidates = conn.execute(
+        "SELECT COUNT(*) FROM research_question WHERE project_id = ?", (project_id,)
+    ).fetchone()[0]
+    steps.append(
+        Step(
+            key="question",
+            done=question is not None,
+            count=candidates,
+            detail=(
+                question["text"]
+                if question
+                else f"{_plural(candidates, 'candidate')} written, none chosen yet"
+                if candidates
+                else "The question the paper answers. It comes out of the groups, "
+                "not before them."
+            ),
+        )
+    )
+
+    sections = list_sections(conn, project_id)
+    drafted = {
+        r["section_id"]
+        for r in conn.execute(
+            "SELECT DISTINCT section_id FROM draft WHERE project_id = ?", (project_id,)
+        )
+    }
+    with_evidence = [s for s in sections if s["evidence_count"]]
+    steps.append(
+        Step(
+            key="write",
+            done=bool(with_evidence) and all(s["id"] in drafted for s in with_evidence),
+            count=len(with_evidence) - len([s for s in with_evidence if s["id"] in drafted]),
+            detail=(
+                f"{len(sections)} sections, {len(with_evidence)} with evidence "
+                f"assigned, {len(drafted & {s['id'] for s in sections})} drafted"
+                if sections
+                else "Sections, the evidence each one uses, and a prompt you paste "
+                "into a chat."
+            ),
+        )
+    )
+
+    counts["sections"] = len(sections)
+    counts["sections_with_evidence"] = len(with_evidence)
+    counts["sections_drafted"] = len(drafted & {s["id"] for s in sections})
+    counts["questions"] = candidates
+
     current = "read"
     if not cards["total"]:
         current = "read"
@@ -191,6 +240,10 @@ def progress(
         current = "sort"
     elif groups["groups"] and groups["labelled"] < groups["groups"]:
         current = "label"
+    elif groups["groups"] and not question:
+        current = "question"
+    elif question and (not with_evidence or not all(s["id"] in drafted for s in with_evidence)):
+        current = "write"
     elif groups["groups"]:
         current = "compare"
     elif pending:

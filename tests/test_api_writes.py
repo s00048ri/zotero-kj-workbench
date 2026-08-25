@@ -233,7 +233,7 @@ def test_progress_names_the_next_step(api):
     body = client.get(f"/api/projects/{pid}/progress").json()
     assert body["current"] == "notes"
     assert [s["key"] for s in body["steps"]] == [
-        "read", "notes", "sort", "label", "compare"
+        "read", "notes", "sort", "label", "compare", "question", "write"
     ]
     assert body["counts"]["pending_notes"] == 5
 

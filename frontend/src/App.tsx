@@ -5,10 +5,11 @@ import Connect from "./screens/Connect";
 import ProjectScreen from "./screens/Project";
 import Cards from "./screens/Cards";
 import Steps from "./screens/Steps";
+import Compose from "./screens/Compose";
 import Groups from "./screens/Groups";
 import Structure from "./screens/Structure";
 
-type Screen = "connect" | "project" | "cards" | "groups" | "structure" | "steps";
+type Screen = "connect" | "project" | "cards" | "groups" | "structure" | "steps" | "compose";
 
 const LAST_PROJECT = "zkj.project";
 
@@ -84,6 +85,14 @@ export default function App() {
           </button>
           <button
             className="tab"
+            aria-current={screen === "compose" ? "page" : undefined}
+            disabled={!project}
+            onClick={() => setScreen("compose")}
+          >
+            Compose
+          </button>
+          <button
+            className="tab"
             aria-current={screen === "project" ? "page" : undefined}
             onClick={() => setScreen("project")}
           >
@@ -138,6 +147,7 @@ export default function App() {
           <Groups project={project} onGoToCards={() => setScreen("cards")} />
         )}
         {screen === "structure" && project && <Structure project={project} />}
+        {screen === "compose" && project && <Compose project={project} />}
       </main>
     </div>
   );
