@@ -342,6 +342,56 @@ def post_draft(
     }
 
 
+@router.post("/draft")
+def post_paper_draft(
+    project_id: str,
+    body: DraftIn,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> dict[str, Any]:
+    """Check a draft of the whole paper against every card in the project."""
+    _project(conn, project_id)
+    if not body.content.strip():
+        raise HTTPException(422, "Nothing pasted.")
+    result = validate(conn, project_id, None, body.content)
+    saved = (
+        save_draft(
+            conn,
+            project_id,
+            None,
+            body.content,
+            prompt_export_id=body.prompt_export_id,
+            validation=result,
+        )
+        if body.save
+        else None
+    )
+    return {
+        "validation": result.as_dict(),
+        "draft": {"id": saved["id"], "version": saved["version"]} if saved else None,
+        "markdown": to_markdown(conn, project_id, None, body.content),
+    }
+
+
+@router.get("/drafts")
+def get_paper_drafts(
+    project_id: str, conn: sqlite3.Connection = Depends(get_db)
+) -> list[dict]:
+    _project(conn, project_id)
+    return [
+        {
+            "id": r["id"],
+            "version": r["version"],
+            "created_at": r["created_at"],
+            "content": r["content"],
+        }
+        for r in conn.execute(
+            "SELECT * FROM draft WHERE project_id = ? AND section_id IS NULL "
+            "ORDER BY version DESC",
+            (project_id,),
+        )
+    ]
+
+
 @router.get("/sections/{section_id}/drafts")
 def get_drafts(
     project_id: str, section_id: str, conn: sqlite3.Connection = Depends(get_db)

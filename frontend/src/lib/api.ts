@@ -221,6 +221,8 @@ export interface ProgressStep {
   done: boolean;
   detail: string;
   count: number;
+  /** Never what the loop points at: a way of taking control, not a gate. */
+  optional: boolean;
 }
 
 export interface Progress {
@@ -286,10 +288,17 @@ export interface PromptOut {
   chars: number;
   tokens: number;
   warning: string | null;
+  /** What this prompt will work out for itself, given what you left blank. */
+  note: string | null;
 }
 
 export interface PromptAvailability {
-  [kind: string]: { ready: boolean; blocked_by: string | null };
+  [kind: string]: {
+    ready: boolean;
+    blocked_by: string | null;
+    infers: string;
+    specified: string;
+  };
 }
 
 export interface Finding {
@@ -313,7 +322,7 @@ export interface ValidationOut {
   evidence_needed: string[];
   findings: Finding[];
   rendered: string;
-  stats: Record<string, number>;
+  stats: Record<string, number | string>;
   clean: boolean;
 }
 
@@ -548,6 +557,19 @@ export const api = {
     request<
       { id: string; version: number; created_at: string; content: string }[]
     >(`/api/projects/${projectId}/sections/${sectionId}/drafts`),
+
+  pastePaper: (
+    projectId: string,
+    body: { content: string; prompt_export_id?: string | null; save?: boolean },
+  ) =>
+    request<DraftResult>(`/api/projects/${projectId}/draft`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  paperDrafts: (projectId: string) =>
+    request<{ id: string; version: number; created_at: string }[]>(
+      `/api/projects/${projectId}/drafts`,
+    ),
 
   paperUrl: (projectId: string) => `/api/projects/${projectId}/paper.md`,
 };

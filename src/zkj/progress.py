@@ -33,6 +33,10 @@ class Step:
     done: bool
     detail: str
     count: int = 0
+    # An optional step is never what the loop points at. Choosing a question
+    # and naming sections are ways of taking control of decisions the model
+    # would otherwise make — worth doing, never required first.
+    optional: bool = False
 
 
 @dataclass
@@ -49,7 +53,13 @@ class Progress:
         return {
             "current": self.current,
             "steps": [
-                {"key": s.key, "done": s.done, "detail": s.detail, "count": s.count}
+                {
+                    "key": s.key,
+                    "done": s.done,
+                    "detail": s.detail,
+                    "count": s.count,
+                    "optional": s.optional,
+                }
                 for s in self.steps
             ],
             "counts": self.counts,
@@ -190,6 +200,7 @@ def progress(
     steps.append(
         Step(
             key="question",
+            optional=True,
             done=question is not None,
             count=candidates,
             detail=(
@@ -197,8 +208,8 @@ def progress(
                 if question
                 else f"{_plural(candidates, 'candidate')} written, none chosen yet"
                 if candidates
-                else "The question the paper answers. It comes out of the groups, "
-                "not before them."
+                else "Optional. Choose one and every prompt will keep it; leave "
+                "it and the model proposes one out of your groups."
             ),
         )
     )
@@ -207,21 +218,35 @@ def progress(
     drafted = {
         r["section_id"]
         for r in conn.execute(
-            "SELECT DISTINCT section_id FROM draft WHERE project_id = ?", (project_id,)
+            "SELECT DISTINCT section_id FROM draft WHERE project_id = ? "
+            "AND section_id IS NOT NULL",
+            (project_id,),
         )
     }
+    whole_paper = conn.execute(
+        "SELECT COUNT(*) FROM draft WHERE project_id = ? AND section_id IS NULL",
+        (project_id,),
+    ).fetchone()[0]
     with_evidence = [s for s in sections if s["evidence_count"]]
     steps.append(
         Step(
             key="write",
-            done=bool(with_evidence) and all(s["id"] in drafted for s in with_evidence),
+            done=bool(whole_paper)
+            or (bool(with_evidence) and all(s["id"] in drafted for s in with_evidence)),
             count=len(with_evidence) - len([s for s in with_evidence if s["id"] in drafted]),
             detail=(
-                f"{len(sections)} sections, {len(with_evidence)} with evidence "
-                f"assigned, {len(drafted & {s['id'] for s in sections})} drafted"
+                f"{whole_paper} drafts of the whole paper"
+                + (
+                    f", and {len(drafted)} of {len(sections)} sections drafted"
+                    if sections
+                    else ""
+                )
+                if whole_paper
+                else f"{len(sections)} sections, {len(with_evidence)} with evidence "
+                f"assigned, {len(drafted)} drafted"
                 if sections
-                else "Sections, the evidence each one uses, and a prompt you paste "
-                "into a chat."
+                else "Build one prompt from your groups and paste back the paper "
+                "it writes — or name the sections yourself first."
             ),
         )
     )
@@ -230,6 +255,7 @@ def progress(
     counts["sections_with_evidence"] = len(with_evidence)
     counts["sections_drafted"] = len(drafted & {s["id"] for s in sections})
     counts["questions"] = candidates
+    counts["whole_paper_drafts"] = whole_paper
 
     current = "read"
     if not cards["total"]:
@@ -240,9 +266,9 @@ def progress(
         current = "sort"
     elif groups["groups"] and groups["labelled"] < groups["groups"]:
         current = "label"
-    elif groups["groups"] and not question:
-        current = "question"
-    elif question and (not with_evidence or not all(s["id"] in drafted for s in with_evidence)):
+    elif groups["groups"] and not steps[-1].done:
+        # Writing comes next once there are groups. Choosing a question first
+        # is a way of taking control of it, not a gate to pass.
         current = "write"
     elif groups["groups"]:
         current = "compare"

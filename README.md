@@ -121,10 +121,21 @@ Every step is re-runnable. Re-reading never destroys work.
 ## Writing
 
 Nothing is sent anywhere. The app builds a complete block of text you paste
-into a chat yourself, and you paste the draft back for checking. There are four
-kinds: groups → themes, themes → questions, an outline, and a section draft.
+into a chat yourself, and you paste the draft back for checking.
 
-A section prompt contains only the cards you assigned to that section, says
+**Nothing has to be specified first.** The shortest path is: highlight, sort
+your notes into subcollections in Zotero, and build one prompt for the whole
+paper. The argument, the sections and what each one claims are worked out from
+the passages and marked as proposals. Anything you *have* decided — a research
+question, a section, a label on a group — is carried through as yours and is
+not the model's to revise. Specifying is how you take a decision back, never a
+gate you pass before the tool will work.
+
+Five kinds: the whole paper, groups → themes, themes → questions, an outline,
+and a single section.
+
+A section prompt contains only the cards you assigned to that section — or, if
+you assigned none, every card, for the model to choose from. Either way it says
 which are the source's words and which are your own, and instructs the model to
 write `[EVIDENCE NEEDED: …]` rather than fill a gap.
 

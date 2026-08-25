@@ -27,6 +27,15 @@ def latest_drafts(conn: sqlite3.Connection, project_id: str) -> dict[str, dict[s
     return drafts
 
 
+def latest_whole_paper(conn: sqlite3.Connection, project_id: str) -> dict[str, Any] | None:
+    row = conn.execute(
+        "SELECT * FROM draft WHERE project_id = ? AND section_id IS NULL "
+        "ORDER BY version DESC LIMIT 1",
+        (project_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
 def paper_markdown(conn: sqlite3.Connection, project_id: str) -> str:
     project = dict(
         conn.execute("SELECT * FROM project WHERE id = ?", (project_id,)).fetchone()
@@ -46,6 +55,23 @@ def paper_markdown(conn: sqlite3.Connection, project_id: str) -> str:
 
     open_work: list[str] = []
     assisted: list[str] = []
+
+    # A draft of the whole paper is the paper. Section drafts, if any, follow
+    # it as the parts that were written separately.
+    whole = latest_whole_paper(conn, project_id)
+    if whole:
+        lines += [
+            to_markdown(conn, project_id, None, whole["content"]).strip(),
+            "",
+        ]
+        open_work += [
+            f"the paper: {m.group(1).strip() or '(unspecified)'}"
+            for m in EVIDENCE_NEEDED_RE.finditer(whole["content"])
+        ]
+        if whole["prompt_export_id"]:
+            assisted.append(f"the whole paper (draft v{whole['version']})")
+        if sections:
+            lines += ["## Sections drafted separately", ""]
 
     for section in sections:
         lines += [f"## {section['title']}", ""]

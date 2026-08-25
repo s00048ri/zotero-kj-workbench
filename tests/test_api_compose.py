@@ -55,11 +55,15 @@ def test_evidence_can_be_taken_out_again(api):
     assert client.get(f"/api/projects/{pid}/sections/{section['id']}/evidence").json() == []
 
 
-def test_prompt_availability_says_what_is_missing(api):
+def test_prompt_availability_names_what_will_be_inferred(api):
     conn, client, pid = api
     state = client.get(f"/api/projects/{pid}/prompts").json()
+    assert state["paper"]["ready"] is True
+    assert state["paper"]["blocked_by"] is None
+    assert "argument" in state["paper"]["infers"]
+    # a section prompt still needs a section to be about
     assert state["section"]["ready"] is False
-    assert state["section"]["blocked_by"] == "no section has evidence assigned"
+    assert state["section"]["blocked_by"] == "add a section first"
 
 
 def test_a_section_prompt_comes_back_with_its_size(api):
@@ -78,13 +82,13 @@ def test_a_section_prompt_comes_back_with_its_size(api):
     assert client.get(f"/api/projects/{pid}/prompt-exports").json()[0]["id"] == body["id"]
 
 
-def test_a_prompt_for_a_section_with_nothing_assigned_is_refused(api):
+def test_a_section_with_nothing_assigned_still_exports(api):
     conn, client, pid = api
     section = client.post(f"/api/projects/{pid}/sections", json={"title": "S"}).json()
-    r = client.post(f"/api/projects/{pid}/prompts",
-                    json={"kind": "section", "section_id": section["id"]})
-    assert r.status_code == 422
-    assert "no evidence" in r.json()["detail"]
+    body = client.post(f"/api/projects/{pid}/prompts",
+                       json={"kind": "section", "section_id": section["id"]}).json()
+    assert body["chars"] > 100
+    assert "No evidence is assigned" in body["note"]
 
 
 def test_pasting_a_draft_back_validates_and_versions_it(api):
@@ -137,15 +141,41 @@ def test_the_paper_export_is_plain_markdown(api):
     assert "[@smith2025" in r.text
 
 
-def test_choosing_a_question_unlocks_the_outline_prompt(api):
+def test_the_outline_exports_with_or_without_a_question(api):
     conn, client, pid = api
+    without = client.post(f"/api/projects/{pid}/prompts", json={"kind": "outline"}).json()
+    assert "No research question has been chosen" in without["content"]
+
     question = client.post(f"/api/projects/{pid}/questions",
                            json={"text": "Does capacity bind?"}).json()
-    assert client.get(f"/api/projects/{pid}/prompts").json()["outline"]["ready"] is False
     client.post(f"/api/projects/{pid}/questions/{question['id']}/choose")
-    assert client.get(f"/api/projects/{pid}/prompts").json()["outline"]["ready"] is True
-    body = client.post(f"/api/projects/{pid}/prompts", json={"kind": "outline"}).json()
-    assert "Does capacity bind?" in body["content"]
+    with_one = client.post(f"/api/projects/{pid}/prompts", json={"kind": "outline"}).json()
+    assert "Research question (fixed): Does capacity bind?" in with_one["content"]
+
+
+def test_the_whole_paper_can_be_built_drafted_and_checked(api):
+    conn, client, pid = api
+    prompt = client.post(f"/api/projects/{pid}/prompts", json={"kind": "paper"}).json()
+    assert prompt["kind"] == "paper"
+    assert prompt["id"]
+
+    card = a_quote(client, pid)
+    draft = (
+        f'Oversight fails at the boundary. "{card["text"]}" '
+        f'[[CITE:{card["human_id"]}]]. [EVIDENCE NEEDED: a case after 2020]'
+    )
+    body = client.post(f"/api/projects/{pid}/draft",
+                       json={"content": draft, "prompt_export_id": prompt["id"]}).json()
+    assert body["draft"]["version"] == 1
+    assert body["validation"]["clean"] is True
+    assert body["validation"]["evidence_needed"] == ["a case after 2020"]
+    assert "[@smith2025, p. 132]" in body["markdown"]
+    assert len(client.get(f"/api/projects/{pid}/drafts").json()) == 1
+
+    paper = client.get(f"/api/projects/{pid}/paper.md").text
+    assert "[@smith2025, p. 132]" in paper
+    assert "the whole paper (draft v1)" in paper
+    assert "a case after 2020" in paper
 
 
 def test_claims_are_listed_under_the_question(api):

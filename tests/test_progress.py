@@ -110,7 +110,9 @@ def test_progress_carries_the_keys_needed_to_open_zotero(setup):
     assert result.kj_root_key
 
 
-def test_after_labelling_the_loop_asks_for_a_research_question(setup):
+def test_after_labelling_the_loop_points_at_the_writing(setup):
+    """Not at the research question: choosing one is optional, and the loop
+    never points at an optional step."""
     from zkj.groups import save_label
 
     _fake, conn, client, project, session = setup
@@ -121,8 +123,27 @@ def test_after_labelling_the_loop_asks_for_a_research_question(setup):
     )
     save_label(conn, project["id"], "P/_KJ/Theme", "A proposition.")
     result = progress(conn, project)
-    assert result.current == "question"
+    assert result.current == "write"
     assert step(result, "label").done is True
+    assert step(result, "question").optional is True
+    assert "Optional" in step(result, "question").detail
+
+
+def test_a_draft_of_the_whole_paper_finishes_the_loop(setup):
+    from zkj.groups import save_label
+    from zkj.validate import save_draft
+
+    _fake, conn, client, project, session = setup
+    materialize(conn, client, session, project)
+    conn.execute(
+        "UPDATE card SET kj_path = 'P/_KJ/Theme', kj_collection_keys_json = '[\"T\"]' "
+        "WHERE kind = 'quote' AND materialized_at IS NOT NULL"
+    )
+    save_label(conn, project["id"], "P/_KJ/Theme", "A proposition.")
+    save_draft(conn, project["id"], None, "a whole paper")
+    result = progress(conn, project)
+    assert step(result, "write").done is True
+    assert result.current == "compare"
 
 
 def test_with_a_question_chosen_the_loop_asks_for_the_writing(setup):

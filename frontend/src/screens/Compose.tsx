@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type Project, type PromptOut } from "../lib/api";
 import PromptPanel from "../components/PromptPanel";
 import SectionPane from "../components/SectionPane";
+import WholePaper from "../components/WholePaper";
 
 /* Question, claims, outline, evidence — and the text that goes to a chat.
  *
@@ -86,39 +87,56 @@ export default function Compose({ project }: { project: Project }) {
       <p className="lede">
         Nothing here is sent anywhere. Each of these builds a block of text you
         paste into a chat yourself, and the draft that comes back is pasted in
-        below and checked against the evidence it was given.
+        and checked against the evidence it was given.
+      </p>
+      <p className="lede">
+        None of it has to be filled in first. Leave the question, the sections
+        and the labels blank and they are worked out from your groups and
+        marked as proposals; fill any of them in and it is carried through as
+        yours.
       </p>
 
-      <h3>Prompts you can paste now</h3>
-      <div className="chips" style={{ marginBottom: "1rem" }}>
+      <WholePaper projectId={project.id} />
+
+      <h3>Or work a piece at a time</h3>
+      <ul className="build-list">
         {(["themes", "questions", "outline"] as const).map((kind) => {
           const state = availability.data?.[kind];
           return (
-            <button
-              key={kind}
-              className="chip build"
-              disabled={!state?.ready || build.isPending}
-              title={state?.blocked_by ?? "Build this prompt"}
-              onClick={() => build.mutate(kind)}
-            >
-              {KIND_TITLES[kind]}
-              {state && !state.ready && (
-                <span className="n">— {state.blocked_by}</span>
+            <li key={kind}>
+              <button
+                className="button quiet"
+                disabled={!state?.ready || build.isPending}
+                onClick={() => build.mutate(kind)}
+              >
+                {KIND_TITLES[kind]}
+              </button>
+              {state && (
+                <span className="meta">
+                  {state.blocked_by
+                    ? state.blocked_by
+                    : `${state.specified} · works out ${state.infers}`}
+                </span>
               )}
-            </button>
+            </li>
           );
         })}
-      </div>
+      </ul>
       {build.isError && <p className="notice bad">{(build.error as Error).message}</p>}
-      {prompt && <PromptPanel prompt={prompt} />}
+      {prompt && (
+        <>
+          {prompt.note && <p className="meta">{prompt.note}</p>}
+          <PromptPanel prompt={prompt} />
+        </>
+      )}
 
-      <h3>The question this paper answers</h3>
+      <h3>The question this paper answers <span className="meta">optional</span></h3>
       {chosen ? (
         <p className="chosen-question">{chosen.text}</p>
       ) : (
         <p className="lede">
-          It comes out of the groups, not before them. Write the candidates you
-          are weighing, then choose one.
+          Leave this and the model proposes one out of your groups, marked as
+          its proposal. Choose one here and every prompt keeps it instead.
         </p>
       )}
       {/* the chosen one is shown above; repeating it here is noise */}
@@ -156,7 +174,7 @@ export default function Compose({ project }: { project: Project }) {
         </button>
       </p>
 
-      <h3>Claims</h3>
+      <h3>Claims <span className="meta">optional</span></h3>
       <ul className="preview-list">
         {(claims.data ?? []).map((c) => (
           <li key={c.id}>
@@ -183,7 +201,12 @@ export default function Compose({ project }: { project: Project }) {
         </button>
       </p>
 
-      <h3>Sections</h3>
+      <h3>Sections <span className="meta">optional</span></h3>
+      <p className="lede">
+        Name a section to take control of it: what it establishes, which cards
+        it uses, how each one is used. A section with nothing assigned is
+        offered every card, and the model chooses.
+      </p>
       <ul className="section-list">
         {(sections.data ?? []).map((section) => (
           <li key={section.id}>

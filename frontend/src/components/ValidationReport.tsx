@@ -10,6 +10,7 @@ import type { DraftResult } from "../lib/api";
 
 export default function ValidationReport({ result }: { result: DraftResult }) {
   const v = result.validation;
+  const wholePaper = v.stats.scope === "project";
   const [view, setView] = useState<"findings" | "reading" | "markdown">("findings");
   const stop = v.findings.filter((f) => f.severity === "stop");
   const look = v.findings.filter((f) => f.severity === "look");
@@ -74,7 +75,11 @@ export default function ValidationReport({ result }: { result: DraftResult }) {
 
           {v.unused.length > 0 && (
             <>
-              <h4>Assigned but unused</h4>
+              <h4>
+                {wholePaper
+                  ? "Cards the paper did not use"
+                  : "Assigned but unused"}
+              </h4>
               <ul className="preview-list">
                 {v.unused.map((card) => (
                   <li key={card.human_id}>
@@ -90,8 +95,8 @@ export default function ValidationReport({ result }: { result: DraftResult }) {
 
           {!stop.length && !look.length && !v.unused.length && (
             <p className="lede">
-              Every quotation matches its source, no paraphrase tracks its
-              original, and every assigned card was used.
+              Every quotation matches its source, nothing restated tracks its
+              original, and no card was left out.
             </p>
           )}
         </>

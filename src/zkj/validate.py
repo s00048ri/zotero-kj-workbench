@@ -25,7 +25,7 @@ import unicodedata
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from .cards import citation_of
+from .cards import CARD_SELECT, citation_of
 from .citekeys import cite_marker, citekeys
 from .compose import section_evidence
 from .store import insert, now_iso
@@ -203,13 +203,41 @@ def quote_diff(expected: str, found: str) -> str:
 # -- the check ------------------------------------------------------------
 
 
+def evidence_for(
+    conn: sqlite3.Connection, project_id: str, section_id: str | None
+) -> dict[str, dict[str, Any]]:
+    """What a draft was allowed to use.
+
+    With a section, the cards assigned to it and what each was to do. Without
+    one — a draft of the whole paper — every card in the project, with no mode
+    fixed, because the researcher did not fix one.
+    """
+    if section_id:
+        return {c["human_id"]: c for c in section_evidence(conn, section_id)}
+    cards: dict[str, dict[str, Any]] = {}
+    for row in conn.execute(
+        CARD_SELECT
+        + " WHERE c.project_id = ? AND c.status = 'active' AND c.kind != 'image' "
+        "AND c.origin != 'group_label'",
+        (project_id,),
+    ):
+        card = dict(row)
+        card["citation"] = citation_of(card)
+        card["citation_mode"] = None
+        card["argument_role"] = None
+        card["user_instruction"] = None
+        cards[card["human_id"]] = card
+    return cards
+
+
 def validate(
     conn: sqlite3.Connection,
     project_id: str,
-    section_id: str,
+    section_id: str | None,
     draft: str,
 ) -> Validation:
-    evidence = {c["human_id"]: c for c in section_evidence(conn, section_id)}
+    evidence = evidence_for(conn, project_id, section_id)
+    scoped = bool(section_id)
     result = Validation()
 
     found = markers(draft)
@@ -225,6 +253,10 @@ def validate(
                     f"{human_id} is cited but was not in this section's evidence. "
                     f"Either the model invented it, or it belongs to another "
                     f"section."
+                    if scoped
+                    else f"{human_id} is cited but is not one of your cards. "
+                    f"Nothing with that number exists in this project — the "
+                    f"model made it up."
                 ),
             )
         )
@@ -244,15 +276,23 @@ def validate(
             _check_direct_quote(result, card, draft, found, spans)
         elif card["citation_mode"] == "paraphrase":
             _check_paraphrase(result, card, draft, spans)
-        else:  # reference_only
+        elif card["citation_mode"] == "reference_only":
             _check_reference_only(result, card, draft, spans)
+        else:
+            # No mode was fixed, so the draft's own choice decides which check
+            # applies: quoted text must be exact, unquoted text must not track
+            # the original.
+            if _spans_near(spans, _near_markers(card["human_id"], found)):
+                _check_direct_quote(result, card, draft, found, spans)
+            else:
+                _check_paraphrase(result, card, draft, spans)
 
     result.unused = [
         {
             "human_id": card["human_id"],
             "kind": card["kind"],
-            "citation_mode": card["citation_mode"],
-            "argument_role": card["argument_role"],
+            "citation_mode": card["citation_mode"] or "not fixed",
+            "argument_role": card["argument_role"] or "not fixed",
             "text": card["text"][:200],
         }
         for human_id, card in evidence.items()
@@ -262,6 +302,7 @@ def validate(
     result.rendered = render_for_reading(draft, evidence)
     words = len(re.findall(r"\w+", draft))
     result.stats = {
+        "scope": "section" if scoped else "project",
         "words": words,
         "chars": len(draft),
         "citations": len(found),
@@ -499,7 +540,7 @@ def render_for_reading(draft: str, evidence: dict[str, Any]) -> str:
 def to_markdown(
     conn: sqlite3.Connection,
     project_id: str,
-    section_id: str,
+    section_id: str | None,
     draft: str,
 ) -> str:
     """Markdown with citekeys, not with pre-rendered author-year strings.
@@ -507,7 +548,7 @@ def to_markdown(
     A draft whose citations are plain text cannot go into pandoc or Zotero's
     word processor plugin without every one being redone by hand.
     """
-    evidence = {c["human_id"]: c for c in section_evidence(conn, section_id)}
+    evidence = evidence_for(conn, project_id, section_id)
     keys = citekeys(conn, project_id)
 
     def replace(match: re.Match[str]) -> str:
@@ -536,16 +577,26 @@ def to_markdown(
 def save_draft(
     conn: sqlite3.Connection,
     project_id: str,
-    section_id: str,
+    section_id: str | None,
     content: str,
     *,
     prompt_export_id: str | None = None,
     validation: Validation | None = None,
 ) -> dict[str, Any]:
     """Append-only. A draft is never overwritten, only followed."""
-    row = conn.execute(
-        "SELECT COALESCE(MAX(version), 0) + 1 AS v FROM draft WHERE section_id = ?",
-        (section_id,),
+    # NULL never equals NULL in SQL, so drafts of the whole paper need their
+    # own branch or every one of them would be version 1.
+    row = (
+        conn.execute(
+            "SELECT COALESCE(MAX(version), 0) + 1 AS v FROM draft "
+            "WHERE project_id = ? AND section_id IS NULL",
+            (project_id,),
+        )
+        if section_id is None
+        else conn.execute(
+            "SELECT COALESCE(MAX(version), 0) + 1 AS v FROM draft WHERE section_id = ?",
+            (section_id,),
+        )
     ).fetchone()
     draft_id = insert(
         conn,

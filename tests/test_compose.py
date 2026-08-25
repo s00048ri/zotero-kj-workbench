@@ -7,6 +7,7 @@ import pytest
 from tests.conftest import FakeZotero
 from zkj.citekeys import base_key, citekeys
 from zkj.compose import (
+    add_claim,
     add_question,
     add_section,
     assign_card,
@@ -108,12 +109,70 @@ def test_an_unknown_role_is_refused(project):
 # -- prompts --------------------------------------------------------------
 
 
-def test_what_is_ready_to_export_is_reported_with_what_is_missing(project):
+def test_nothing_but_an_empty_project_blocks_an_export(project):
+    """Specifying is how you take control of a decision, not a toll gate."""
     conn, p = project
     state = available(conn, p["id"])
-    assert state["themes"]["ready"] is False
-    assert "no groups" in state["themes"]["blocked_by"]
-    assert state["outline"]["blocked_by"] == "no research question chosen"
+    assert state["themes"]["ready"] is True
+    assert state["questions"]["ready"] is True
+    assert state["outline"]["ready"] is True
+    assert state["paper"]["ready"] is True
+    assert all(state[k]["blocked_by"] is None for k in ("themes", "questions", "outline", "paper"))
+
+
+def test_what_each_export_will_work_out_for_itself_is_named(project):
+    conn, p = project
+    state = available(conn, p["id"])
+    assert "argument" in state["paper"]["infers"]
+    assert state["outline"]["specified"] == "no question chosen"
+    assert state["themes"]["specified"] == "no groups yet; your folders will be used"
+
+
+def test_an_empty_project_says_so(tmp_path):
+    from zkj.store import insert
+
+    conn = connect(tmp_path / "empty.sqlite3")
+    pid = insert(conn, "project",
+                 {"name": "e", "root_collection_key": "R", "created_at": now_iso()})
+    state = available(conn, pid)
+    assert state["paper"]["ready"] is False
+    assert "no cards" in state["paper"]["blocked_by"]
+
+
+def test_the_themes_prompt_works_without_any_grouping_at_all(project):
+    """Before anything is dragged in Zotero, the folders the sources sit in are
+    the researcher's grouping — the tool works from where they actually are."""
+    conn, p = project
+    prompt = build(conn, p, "themes")
+    assert "Agentic Governance/02 Oversight" in prompt.content
+    assert "put these together but has not said why" in flat(prompt.content)
+    assert "No group is labelled" in prompt.note
+
+
+def test_an_unlabelled_group_is_offered_for_the_model_to_read(project):
+    conn, p = project
+    grouped(conn, p["id"])
+    content = build(conn, p, "questions").content
+    assert "the theme is yours to work out" in flat(content)
+
+
+def test_the_outline_prompt_proposes_the_question_when_none_is_chosen(project):
+    conn, p = project
+    prompt = build(conn, p, "outline")
+    assert "no research question has been chosen" in flat(prompt.content)
+    assert "mark the question as your proposal" in flat(prompt.content)
+    assert "The researcher has fixed nothing yet" in prompt.content
+
+
+def test_what_the_researcher_did_fix_is_marked_as_not_the_model_s(project):
+    conn, p = project
+    question = add_question(conn, p["id"], "Does capacity bind?")
+    choose_question(conn, p["id"], question["id"])
+    add_claim(conn, p["id"], "Capacity binds before law does.", claim_type="thesis")
+    add_section(conn, p["id"], "Institutional capacity")
+    content = build(conn, p, "outline").content
+    assert "Research question (fixed): Does capacity bind?" in content
+    assert "is not yours to revise" in flat(content)
 
 
 def test_the_themes_prompt_carries_the_groups_and_their_labels(project):
@@ -176,12 +235,24 @@ def test_an_estimated_locator_is_flagged_in_the_prompt(project):
     assert card["human_id"] in content.split("LOCATORS TO VERIFY")[1]
 
 
-def test_a_section_with_no_evidence_refuses_to_export(project):
-    """A prompt with no cards is an invitation to invent some."""
+def test_a_section_with_no_evidence_offers_every_card_and_says_so(project):
+    """Unassigned does not mean unwritable: the whole project is the allowed
+    set, so nothing can be invented — only chosen."""
     conn, p = project
     section = add_section(conn, p["id"], "Empty")
-    with pytest.raises(ValueError, match="no evidence"):
-        build(conn, p, "section", section_id=section["id"])
+    prompt = build(conn, p, "section", section_id=section["id"])
+    assert "has not said which of these the section uses" in flat(prompt.content)
+    assert "No evidence is assigned" in prompt.note
+    every = [r["human_id"] for r in conn.execute(
+        "SELECT human_id FROM card WHERE kind != 'image' AND origin != 'group_label'")]
+    assert all(h in prompt.content for h in every)
+
+
+def test_a_section_with_no_purpose_is_asked_to_work_one_out(project):
+    conn, p = project
+    section = add_section(conn, p["id"], "Untitled work")
+    content = build(conn, p, "section", section_id=section["id"]).content
+    assert "work out what this section has to establish" in flat(content)
 
 
 def test_the_exact_text_sent_is_kept(project):
@@ -445,3 +516,111 @@ def test_a_passage_containing_quotation_marks_is_still_recognised(section):
     # the diff is against the stretch the draft was quoting, not the whole card
     assert "borrows" in finding.detail and "steals" in finding.detail
     assert finding.detail.count("\n") < 8
+
+
+# -- the whole paper, from the clusters alone -----------------------------
+
+
+def test_the_paper_prompt_works_from_nothing_but_the_cards(project):
+    """The point of the thing: highlights in groups, and a paper out of them."""
+    conn, p = project
+    prompt = build(conn, p, "paper")
+    assert prompt.kind == "paper"
+    assert "Write a paper out of the passages below" in prompt.content
+    assert "say what you take the argument to be" in flat(prompt.content)
+    assert "propose the sections" in flat(prompt.content)
+    assert "The researcher has fixed nothing yet" in prompt.content
+    assert "the argument, the sections and their claims are all the model's" in prompt.note
+
+
+def test_the_paper_prompt_keeps_whatever_the_researcher_did_fix(project):
+    conn, p = project
+    question = add_question(conn, p["id"], "Does capacity bind?")
+    choose_question(conn, p["id"], question["id"])
+    add_section(conn, p["id"], "Institutional capacity", purpose="Establish it binds.")
+    prompt = build(conn, p, "paper")
+    assert "Research question (fixed): Does capacity bind?" in prompt.content
+    assert "Institutional capacity — Establish it binds." in prompt.content
+    assert "your question and sections will be kept" in available(conn, p["id"])["paper"]["specified"]
+
+
+def test_every_card_reaches_the_paper_prompt_grouped_or_not(project):
+    conn, p = project
+    # only some cards are filed; the rest must not vanish from the prompt
+    quote_one = quote(conn)
+    conn.execute(
+        "UPDATE card SET kj_path = 'P/_KJ/Oversight', zotero_note_key = 'N', "
+        "materialized_at = ? WHERE id = ?", (now_iso(), quote_one["id"]))
+    prompt = build(conn, p, "paper")
+    assert "not yet grouped" in prompt.content
+    every = [r["human_id"] for r in conn.execute(
+        "SELECT human_id FROM card WHERE kind != 'image' AND origin != 'group_label'")]
+    assert all(h in prompt.content for h in every)
+
+
+def test_a_whole_paper_draft_is_checked_against_every_card(project):
+    """No section means no whitelist of one section — the project is the set."""
+    conn, p = project
+    card = quote(conn)
+    draft = (
+        f'Oversight fails at the boundary. "{card["text"]}" [[CITE:{card["human_id"]}]]. '
+        f'A later study agrees [[CITE:KJ-9999]].'
+    )
+    result = validate(conn, p["id"], None, draft)
+    assert result.unknown == ["KJ-9999"]
+    assert not [f for f in result.findings if f.kind == "quotation_altered"]
+
+
+def test_with_no_mode_fixed_the_draft_s_own_choice_decides_the_check(project):
+    conn, p = project
+    card = quote(conn, "annotation:ANN4:quote")
+
+    quoted_exactly = f'They write "{card["text"]}" [[CITE:{card["human_id"]}]].'
+    assert validate(conn, p["id"], None, quoted_exactly).clean
+
+    quoted_wrongly = (
+        f'They write "{card["text"].replace("lags", "sprints")}" '
+        f'[[CITE:{card["human_id"]}]].'
+    )
+    assert any(
+        f.kind == "quotation_altered"
+        for f in validate(conn, p["id"], None, quoted_wrongly).findings
+    )
+
+    echoed_without_marks = f'{card["text"]} [[CITE:{card["human_id"]}]].'
+    assert any(
+        f.kind == "paraphrase_too_close"
+        for f in validate(conn, p["id"], None, echoed_without_marks).findings
+    )
+
+
+def test_whole_paper_drafts_are_versioned_separately_from_sections(project):
+    conn, p = project
+    section = add_section(conn, p["id"], "A section")
+    save_draft(conn, p["id"], section["id"], "section draft")
+    first = save_draft(conn, p["id"], None, "paper draft")
+    second = save_draft(conn, p["id"], None, "paper draft again")
+    assert (first["version"], second["version"]) == (1, 2)
+
+
+def test_a_whole_paper_draft_exports_with_citekeys(project):
+    conn, p = project
+    card = quote(conn)
+    markdown = to_markdown(conn, p["id"], None, f"x [[CITE:{card['human_id']}]]")
+    assert "[@smith2025, p. 132]" in markdown
+
+
+def test_an_invented_citation_is_named_for_the_scope_it_broke(project):
+    """"Not in this section's evidence" is the wrong thing to say about a
+    draft of the whole paper — there was no section."""
+    conn, p = project
+    section = add_section(conn, p["id"], "S")
+    assign_card(conn, section["id"], quote(conn)["id"])
+
+    scoped = validate(conn, p["id"], section["id"], "x [[CITE:KJ-9999]]")
+    assert "this section's evidence" in scoped.findings[0].message
+    assert scoped.stats["scope"] == "section"
+
+    whole = validate(conn, p["id"], None, "x [[CITE:KJ-9999]]")
+    assert "is not one of your cards" in whole.findings[0].message
+    assert whole.stats["scope"] == "project"

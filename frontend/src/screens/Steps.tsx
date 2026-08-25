@@ -24,7 +24,7 @@ const TITLES: Record<ProgressStep["key"], string> = {
   label: "Say what each group claims",
   compare: "Set your outline against your evidence",
   question: "Choose the question this paper answers",
-  write: "Draft each section from its own evidence",
+  write: "Write the paper from your groups",
 };
 
 function ImportSummary({ result }: { result: ImportResult }) {
@@ -142,7 +142,7 @@ export default function Steps({
     ),
     write: (
       <button className="button" onClick={() => go("compose")}>
-        {counts.sections ? "Open the outline" : "Start the outline"}
+        {counts.whole_paper_drafts ? "Back to the draft" : "Build the prompt"}
       </button>
     ),
   };
@@ -162,13 +162,17 @@ export default function Steps({
       <ol className="loop">
         {p.steps.map((step, index) => {
           const state = step.done ? "done" : step.key === p.current ? "now" : "later";
+          const marker = step.done ? "✓" : step.optional ? "·" : String(index + 1);
           return (
             <li className="step" data-state={state} key={step.key}>
               <span className="marker" aria-hidden="true">
-                {step.done ? "✓" : index + 1}
+                {marker}
               </span>
               <div className="body">
-                <h3>{TITLES[step.key]}</h3>
+                <h3>
+                  {TITLES[step.key]}
+                  {step.optional && <span className="meta"> optional</span>}
+                </h3>
                 <p className="detail">{step.detail}</p>
                 {step.key === "sort" && !step.done && counts.in_zotero > 0 && (
                   <p className="detail">
