@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from tests.conftest import FakeZotero
 from zkj.api import deps
 from zkj.api.app import create_app
-from zkj.store import connect
+from zkj.store import connect, now_iso
 
 
 @pytest.fixture
@@ -186,3 +186,26 @@ def test_claims_are_listed_under_the_question(api):
     assert claims[0]["claim_type"] == "thesis"
     client.delete(f"/api/projects/{pid}/claims/{claims[0]['id']}")
     assert client.get(f"/api/projects/{pid}/claims").json() == []
+
+
+def test_groups_can_be_adopted_and_reordered_over_http(api):
+    conn, client, pid = api
+    conn.execute(
+        "UPDATE card SET kj_path = 'P/_KJ/Oversight', zotero_note_key = 'N', "
+        "materialized_at = ? WHERE kind = 'quote'", (now_iso(),))
+    body = client.post(f"/api/projects/{pid}/sections/adopt-groups").json()
+    assert body["created"] == 1
+    section = client.get(f"/api/projects/{pid}/sections").json()[0]
+    assert section["evidence_count"] == 3
+
+    other = client.post(f"/api/projects/{pid}/sections", json={"title": "Later"}).json()
+    moved = client.post(f"/api/projects/{pid}/sections/{other['id']}/move?delta=-1").json()
+    assert [s["title"] for s in moved][0] == "Later"
+
+
+def test_the_paper_export_carries_the_evidence_when_nothing_is_drafted(api):
+    conn, client, pid = api
+    card = a_quote(client, pid)
+    paper = client.get(f"/api/projects/{pid}/paper.md").text
+    assert card["text"] in paper
+    assert "not drafted yet" not in paper

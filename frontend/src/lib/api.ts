@@ -503,6 +503,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  adoptGroups: (projectId: string) =>
+    request<{ created: number; sections: Section[] }>(
+      `/api/projects/${projectId}/sections/adopt-groups`,
+      { method: "POST" },
+    ),
+  moveSection: (projectId: string, sectionId: string, delta: number) =>
+    request<Section[]>(
+      `/api/projects/${projectId}/sections/${sectionId}/move${query({ delta })}`,
+      { method: "POST" },
+    ),
   patchSection: (projectId: string, sectionId: string, body: Record<string, unknown>) =>
     request<Section>(`/api/projects/${projectId}/sections/${sectionId}`, {
       method: "PATCH",

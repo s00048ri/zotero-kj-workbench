@@ -516,6 +516,21 @@ def paper_prompt(conn: sqlite3.Connection, project: dict[str, Any]) -> Prompt:
         raise _no_cards()
     fixed, has_fixed = _fixed_block(conn, project["id"])
     total = sum(len(b["cards"]) for b in buckets)
+    sections = list_sections(conn, project["id"])
+
+    # A group is a claim about what belongs with what. It is not a claim about
+    # what comes first: that is the order the folders happened to be in.
+    order_note = (
+        "The sections below are in the order the researcher set. Keep it.\n"
+        "What each group contains is their decision; how the argument runs\n"
+        "through them is what you are writing."
+        if sections
+        else "Each group below is the researcher's claim that these passages\n"
+        "belong together — nothing more. The order they appear in is the order\n"
+        "their folders happened to be in, and means nothing. Order the sections\n"
+        "as the argument requires, split a group across two sections if it holds\n"
+        "two ideas, and put two groups in one section if they are one idea."
+    )
 
     task = (
         "Write a paper out of the passages below.\n\n"
@@ -529,6 +544,8 @@ def paper_prompt(conn: sqlite3.Connection, project: dict[str, Any]) -> Prompt:
         "  3. Draft the paper.\n"
         "  4. End with two lists: what you inferred rather than were told, and\n"
         "     what the evidence could not carry.\n\n"
+        + order_note
+        + "\n\n"
         + PAPER_RULES
     )
 

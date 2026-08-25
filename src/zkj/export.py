@@ -1,10 +1,15 @@
-"""The paper, as Markdown a typesetter can use.
+"""The paper, as Markdown a typesetter can use — and as a file that stands alone.
 
 Citations leave as citekeys, never as pre-rendered author-year strings, so the
-file can go straight into pandoc or be re-linked in Zotero. And the appendix
-says which sections were drafted with a model's help, from the prompts this
-app actually sent — a record the researcher keeps for themselves, and can hand
-over if they are ever asked.
+file can go straight into pandoc or be re-linked in Zotero. The appendix says
+which sections were drafted with a model's help, from the prompts this app
+actually sent — a record the researcher keeps for themselves, and can hand over
+if they are ever asked.
+
+Where a section has not been drafted, its **evidence is written out in full**
+rather than left as a stub. A file that says "not drafted yet — 0 cards
+assigned" is no use to anybody: not to the researcher reading it, and not to a
+model being handed it. Everything the passages say travels with them.
 """
 
 from __future__ import annotations
@@ -13,7 +18,13 @@ import sqlite3
 from typing import Any
 
 from .citekeys import citekeys
-from .compose import chosen_question, list_claims, list_sections
+from .compose import (
+    chosen_question,
+    list_claims,
+    list_sections,
+    section_evidence,
+    unassigned_cards,
+)
 from .validate import EVIDENCE_NEEDED_RE, to_markdown
 
 
@@ -36,6 +47,26 @@ def latest_whole_paper(conn: sqlite3.Connection, project_id: str) -> dict[str, A
     return dict(row) if row else None
 
 
+def card_markdown(card: dict[str, Any]) -> list[str]:
+    """One card, whole. The quotation is the thing; nothing is abbreviated."""
+    lines: list[str] = []
+    if card["kind"] == "quote":
+        citation = card.get("citation") or ""
+        estimated = " *(locator estimated — verify)*" if card.get("locator_estimated") else ""
+        lines.append(f"**[{card['human_id']}]** {citation}{estimated}")
+        lines.append("")
+        lines.append(f"> {card['text']}")
+    else:
+        lines.append(f"**[{card['human_id']}]** the researcher's own words")
+        lines.append("")
+        lines.append(card["text"])
+    if card.get("citation_mode") and card.get("argument_role"):
+        lines.append("")
+        lines.append(f"*{card['citation_mode']} · {card['argument_role']}*")
+    lines.append("")
+    return lines
+
+
 def paper_markdown(conn: sqlite3.Connection, project_id: str) -> str:
     project = dict(
         conn.execute("SELECT * FROM project WHERE id = ?", (project_id,)).fetchone()
@@ -43,11 +74,24 @@ def paper_markdown(conn: sqlite3.Connection, project_id: str) -> str:
     question = chosen_question(conn, project_id)
     sections = list_sections(conn, project_id)
     drafts = latest_drafts(conn, project_id)
+    whole = latest_whole_paper(conn, project_id)
+    claims = list_claims(conn, project_id)
 
     lines = [f"# {project['name']}", ""]
+    lines += [
+        "<!-- Everything this project holds: what has been drafted, and the",
+        "     evidence for what has not. Quotations are reproduced in full. -->",
+        "",
+    ]
+
     if question:
         lines += [f"**Research question.** {question['text']}", ""]
-    claims = list_claims(conn, project_id)
+    else:
+        lines += [
+            "**Research question.** Not chosen — a reader of this file should",
+            "work out what these passages can answer.",
+            "",
+        ]
     if claims:
         lines += ["**Claims.**", ""]
         lines += [f"- {c['text']}" for c in claims]
@@ -56,14 +100,8 @@ def paper_markdown(conn: sqlite3.Connection, project_id: str) -> str:
     open_work: list[str] = []
     assisted: list[str] = []
 
-    # A draft of the whole paper is the paper. Section drafts, if any, follow
-    # it as the parts that were written separately.
-    whole = latest_whole_paper(conn, project_id)
     if whole:
-        lines += [
-            to_markdown(conn, project_id, None, whole["content"]).strip(),
-            "",
-        ]
+        lines += [to_markdown(conn, project_id, None, whole["content"]).strip(), ""]
         open_work += [
             f"the paper: {m.group(1).strip() or '(unspecified)'}"
             for m in EVIDENCE_NEEDED_RE.finditer(whole["content"])
@@ -75,21 +113,65 @@ def paper_markdown(conn: sqlite3.Connection, project_id: str) -> str:
 
     for section in sections:
         lines += [f"## {section['title']}", ""]
+        if section["purpose"]:
+            lines += [f"*{section['purpose']}*", ""]
         draft = drafts.get(section["id"])
-        if not draft:
+        if draft:
+            body = to_markdown(conn, project_id, section["id"], draft["content"])
+            lines += [body.strip(), ""]
+            open_work += [
+                f"{section['title']}: {m.group(1).strip() or '(unspecified)'}"
+                for m in EVIDENCE_NEEDED_RE.finditer(draft["content"])
+            ]
+            if draft["prompt_export_id"]:
+                assisted.append(f"{section['title']} (draft v{draft['version']})")
+            continue
+
+        evidence = section_evidence(conn, section["id"])
+        if evidence:
+            lines += ["*Not drafted. Its evidence, in full:*", ""]
+            for card in evidence:
+                lines += card_markdown(card)
+        else:
             lines += [
-                f"<!-- not drafted yet — {section['evidence_count']} cards assigned -->",
+                "*Not drafted, and no evidence assigned to it. The material "
+                "below is what there is.*",
                 "",
             ]
-            continue
-        body = to_markdown(conn, project_id, section["id"], draft["content"])
-        lines += [body.strip(), ""]
-        open_work += [
-            f"{section['title']}: {m.group(1).strip() or '(unspecified)'}"
-            for m in EVIDENCE_NEEDED_RE.finditer(draft["content"])
+
+    loose = unassigned_cards(conn, project_id)
+    if loose:
+        heading = (
+            "## Material not placed in a section"
+            if sections
+            else "## The material, as the researcher grouped it"
+        )
+        lines += [heading, ""]
+        lines += [
+            "<!-- These are the researcher's own groupings. The order is not an",
+            "     argument: it is the order the folders happened to be in. -->",
+            "",
         ]
-        if draft["prompt_export_id"]:
-            assisted.append(f"{section['title']} (draft v{draft['version']})")
+        by_group: dict[str, list[dict[str, Any]]] = {}
+        # Straight from the label cards: list_groups() also computes a
+        # similarity pair per group, which an export has no use for.
+        labels = {
+            r["kj_path"]: r["text"]
+            for r in conn.execute(
+                "SELECT kj_path, text FROM card WHERE project_id = ? "
+                "AND origin = 'group_label'",
+                (project_id,),
+            )
+        }
+        for card in loose:
+            key = card["kj_path"] or card["prior_path"] or "not in any group"
+            by_group.setdefault(key, []).append(card)
+        for path, cards in by_group.items():
+            lines += [f"### {path.rsplit('/', 1)[-1]}", ""]
+            if labels.get(path):
+                lines += [f"*The researcher's label: {labels[path]}*", ""]
+            for card in cards:
+                lines += card_markdown(card)
 
     if open_work:
         lines += ["## Open work", ""]

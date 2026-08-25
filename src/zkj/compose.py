@@ -285,6 +285,96 @@ def section_evidence(
     return rows
 
 
+# -- groups as sections ---------------------------------------------------
+
+
+def adopt_groups_as_sections(
+    conn: sqlite3.Connection, project_id: str
+) -> list[dict[str, Any]]:
+    """Turn each group into a section, carrying its cards in as evidence.
+
+    The passages a researcher put together are already their claim about what
+    belongs with what — that is the whole point of having sorted them. This
+    makes that grouping into an outline they can rename, reorder and prune,
+    without asking them to build one from nothing.
+
+    A group that already has a section of the same name is left alone, so this
+    can be pressed twice.
+    """
+    from .groups import list_groups  # circular at module level
+
+    existing = {s["title"] for s in list_sections(conn, project_id)}
+    made: list[dict[str, Any]] = []
+    for group in list_groups(conn, project_id):
+        title = group.label["text"].split("\n\n")[0] if group.label else group.name
+        title = title.rstrip(".")
+        if title in existing:
+            continue
+        section = add_section(
+            conn,
+            project_id,
+            title,
+            purpose=""
+            if group.label
+            else f"What the passages under “{group.name}” add up to.",
+        )
+        for card in group.cards:
+            assign_card(
+                conn,
+                section["id"],
+                card["id"],
+                citation_mode="paraphrase" if card["kind"] == "quote" else "reference_only",
+            )
+        existing.add(title)
+        made.append(section)
+    return made
+
+
+def move_section(conn: sqlite3.Connection, section_id: str, delta: int) -> list[dict[str, Any]]:
+    """Move one section up or down. Order is the researcher's to set."""
+    row = conn.execute(
+        "SELECT project_id FROM outline_section WHERE id = ?", (section_id,)
+    ).fetchone()
+    if row is None:
+        raise ValueError("No such section.")
+    sections = list_sections(conn, row["project_id"])
+    index = next((i for i, s in enumerate(sections) if s["id"] == section_id), None)
+    if index is None:
+        raise ValueError("No such section.")
+    target = index + delta
+    if not 0 <= target < len(sections):
+        return sections
+    sections[index], sections[target] = sections[target], sections[index]
+    for position, section in enumerate(sections):
+        conn.execute(
+            "UPDATE outline_section SET sort_order = ? WHERE id = ?",
+            (position, section["id"]),
+        )
+    return list_sections(conn, row["project_id"])
+
+
+def unassigned_cards(
+    conn: sqlite3.Connection, project_id: str
+) -> list[dict[str, Any]]:
+    """Cards no section is using — the material still waiting to be placed."""
+    rows = [
+        dict(r)
+        for r in conn.execute(
+            "SELECT c.*, s.zotero_item_key AS source_key, s.title AS source_title, "
+            "s.creators_short, s.year AS source_year, s.publication_title "
+            "FROM card c LEFT JOIN source s ON s.id = c.source_id "
+            "WHERE c.project_id = ? AND c.status = 'active' AND c.kind != 'image' "
+            "AND c.origin != 'group_label' AND c.id NOT IN "
+            "(SELECT card_id FROM section_card_usage WHERE include = 1) "
+            "ORDER BY COALESCE(c.kj_path, c.prior_path), c.human_id",
+            (project_id,),
+        )
+    ]
+    for row in rows:
+        row["citation"] = citation_of(row)
+    return rows
+
+
 # -- helpers --------------------------------------------------------------
 
 

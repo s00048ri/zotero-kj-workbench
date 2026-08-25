@@ -10,8 +10,11 @@ from zkj.compose import (
     add_claim,
     add_question,
     add_section,
+    adopt_groups_as_sections,
     assign_card,
     choose_question,
+    list_sections,
+    move_section,
     section_evidence,
 )
 from zkj.export import paper_markdown
@@ -624,3 +627,121 @@ def test_an_invented_citation_is_named_for_the_scope_it_broke(project):
     whole = validate(conn, p["id"], None, "x [[CITE:KJ-9999]]")
     assert "is not one of your cards" in whole.findings[0].message
     assert whole.stats["scope"] == "project"
+
+
+def test_group_order_is_not_an_argument_and_says_so(project):
+    """A group says these passages belong together. It says nothing about what
+    comes first — that is the order the folders happened to be in."""
+    conn, p = project
+    content = build(conn, p, "paper").content
+    assert "the order their folders happened to be in, and means nothing" in flat(content)
+    assert "order the sections as the argument requires" in flat(content)
+    assert "split a group across two sections" in flat(content)
+
+
+def test_once_the_researcher_names_sections_their_order_is_kept(project):
+    conn, p = project
+    add_section(conn, p["id"], "Second thing")
+    content = build(conn, p, "paper").content
+    assert "in the order the researcher set. Keep it." in content
+
+
+# -- groups become an outline you can edit --------------------------------
+
+
+def test_groups_can_be_adopted_as_sections_carrying_their_cards(project):
+    """The passages you put together are already your claim about what belongs
+    with what. This makes that into an outline, rather than asking for one."""
+    conn, p = project
+    grouped(conn, p["id"], "P/_KJ/Oversight")
+    made = adopt_groups_as_sections(conn, p["id"])
+    assert [s["title"] for s in made] == ["Oversight"]
+    evidence = section_evidence(conn, made[0]["id"])
+    assert len(evidence) == 6  # every card in the group came with it
+    assert {e["citation_mode"] for e in evidence} == {"paraphrase", "reference_only"}
+
+
+def test_a_labelled_group_becomes_a_section_named_by_its_proposition(project):
+    conn, p = project
+    path = grouped(conn, p["id"], "P/_KJ/Oversight")
+    save_label(conn, p["id"], path, "Oversight is organisational, not individual.")
+    made = adopt_groups_as_sections(conn, p["id"])
+    assert made[0]["title"] == "Oversight is organisational, not individual"
+
+
+def test_adopting_twice_does_not_duplicate(project):
+    conn, p = project
+    grouped(conn, p["id"], "P/_KJ/Oversight")
+    adopt_groups_as_sections(conn, p["id"])
+    assert adopt_groups_as_sections(conn, p["id"]) == []
+    assert len(list_sections(conn, p["id"])) == 1
+
+
+def test_sections_can_be_reordered(project):
+    conn, p = project
+    first = add_section(conn, p["id"], "One")
+    second = add_section(conn, p["id"], "Two")
+    third = add_section(conn, p["id"], "Three")
+    assert [s["title"] for s in list_sections(conn, p["id"])] == ["One", "Two", "Three"]
+
+    move_section(conn, third["id"], -1)
+    assert [s["title"] for s in list_sections(conn, p["id"])] == ["One", "Three", "Two"]
+
+    move_section(conn, first["id"], +1)
+    assert [s["title"] for s in list_sections(conn, p["id"])] == ["Three", "One", "Two"]
+
+    # the ends hold
+    move_section(conn, list_sections(conn, p["id"])[0]["id"], -1)
+    assert [s["title"] for s in list_sections(conn, p["id"])] == ["Three", "One", "Two"]
+    assert second and first
+
+
+# -- the export stands on its own -----------------------------------------
+
+
+def test_an_undrafted_paper_still_carries_every_quotation_in_full(project):
+    """A file that says "not drafted yet — 0 cards assigned" is no use to
+    anybody: not to the researcher, and not to a model handed it."""
+    conn, p = project
+    markdown = paper_markdown(conn, p["id"])
+    card = quote(conn)
+    assert card["text"] in markdown
+    assert card["human_id"] in markdown
+    assert "Smith 2025, p. 132" in markdown
+    assert "not drafted yet" not in markdown
+    assert "The material, as the researcher grouped it" in markdown
+
+
+def test_the_researcher_s_own_words_are_marked_as_theirs_in_the_export(project):
+    conn, p = project
+    markdown = paper_markdown(conn, p["id"])
+    idea = dict(conn.execute(
+        "SELECT * FROM card WHERE origin = 'annotation_comment'").fetchone())
+    assert "the researcher's own words" in markdown
+    assert idea["text"] in markdown
+
+
+def test_a_section_with_evidence_carries_it_when_undrafted(project):
+    conn, p = project
+    section = add_section(conn, p["id"], "Institutional capacity")
+    card = quote(conn)
+    assign_card(conn, section["id"], card["id"], citation_mode="direct_quote")
+    markdown = paper_markdown(conn, p["id"])
+    assert "## Institutional capacity" in markdown
+    assert "Not drafted. Its evidence, in full:" in markdown
+    assert card["text"] in markdown
+    assert "direct_quote · evidence" in markdown
+
+
+def test_material_already_used_by_a_section_is_not_repeated(project):
+    conn, p = project
+    section = add_section(conn, p["id"], "S")
+    card = quote(conn)
+    assign_card(conn, section["id"], card["id"])
+    markdown = paper_markdown(conn, p["id"])
+    assert markdown.count(card["text"]) == 1
+
+
+def test_the_export_says_when_no_question_was_chosen(project):
+    conn, p = project
+    assert "Not chosen" in paper_markdown(conn, p["id"])

@@ -15,12 +15,14 @@ from ..compose import (
     add_claim,
     add_question,
     add_section,
+    adopt_groups_as_sections,
     assign_card,
     choose_question,
     delete_section,
     list_claims,
     list_questions,
     list_sections,
+    move_section,
     section_evidence,
     unassign_card,
     update_section,
@@ -181,6 +183,30 @@ def post_section(
         )
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
+
+
+@router.post("/sections/adopt-groups")
+def post_adopt(
+    project_id: str, conn: sqlite3.Connection = Depends(get_db)
+) -> dict[str, Any]:
+    """Turn each group into a section, carrying its cards in as evidence."""
+    _project(conn, project_id)
+    made = adopt_groups_as_sections(conn, project_id)
+    return {"created": len(made), "sections": made}
+
+
+@router.post("/sections/{section_id}/move")
+def post_move(
+    project_id: str,
+    section_id: str,
+    delta: int = 1,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> list[dict]:
+    _project(conn, project_id)
+    try:
+        return move_section(conn, section_id, delta)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
 
 
 @router.patch("/sections/{section_id}")
