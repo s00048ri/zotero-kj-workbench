@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "./lib/api";
+import { ApiError, OFFLINE, api } from "./lib/api";
 import Connect from "./screens/Connect";
 import ProjectScreen from "./screens/Project";
 import Cards from "./screens/Cards";
@@ -21,8 +21,21 @@ export default function App() {
     () => localStorage.getItem(LAST_PROJECT),
   );
 
-  const status = useQuery({ queryKey: ["status"], queryFn: api.status });
+  const status = useQuery({
+    queryKey: ["status"],
+    queryFn: api.status,
+    // A backend that has just restarted is the common case; one that is gone
+    // is worth saying out loud rather than retrying forever.
+    retry: 2,
+    retryDelay: 800,
+    refetchInterval: (query) => (query.state.error ? 5000 : false),
+  });
   const projects = useQuery({ queryKey: ["projects"], queryFn: api.projects });
+
+  const offline =
+    status.error instanceof ApiError && status.error.status === OFFLINE
+      ? status.error
+      : null;
 
   useEffect(() => {
     if (projectId) localStorage.setItem(LAST_PROJECT, projectId);
@@ -38,12 +51,18 @@ export default function App() {
 
   const project = projects.data?.find((p) => p.id === projectId) ?? null;
 
-  const state = !status.data?.reachable || !status.data?.permitted
+  const state = offline
     ? "down"
-    : status.data.writes_available
-      ? "ok"
-      : "read-only";
-  const stateLabel = { down: "Zotero unreachable", ok: "Zotero connected", "read-only": "read-only" }[state];
+    : !status.data?.reachable || !status.data?.permitted
+      ? "down"
+      : status.data.writes_available
+        ? "ok"
+        : "read-only";
+  const stateLabel = offline
+    ? "workbench not running"
+    : { down: "Zotero unreachable", ok: "Zotero connected", "read-only": "read-only" }[
+        state
+      ];
 
   return (
     <div className="app">
@@ -115,6 +134,15 @@ export default function App() {
           <span>{stateLabel}</span>
         </button>
       </header>
+
+      {offline && (
+        <p className="notice bad offline">
+          {offline.message} {offline.remedy}{" "}
+          <button className="button quiet" onClick={() => status.refetch()}>
+            Try again
+          </button>
+        </p>
+      )}
 
       <main>
         {screen === "connect" && <Connect />}

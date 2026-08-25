@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { ApiError, OFFLINE, api } from "../lib/api";
 
 /* What this machine can and cannot do, and what to change if it cannot. */
 export default function Connect() {
@@ -19,6 +19,22 @@ export default function Connect() {
   });
 
   if (status.isLoading) return <p className="spinner">Asking Zotero…</p>;
+
+  // With the workbench itself unreachable, whatever is still in the cache is
+  // out of date — and showing "Connected to Zotero" above a banner saying
+  // nothing is answering is worse than showing nothing.
+  if (status.error instanceof ApiError && status.error.status === OFFLINE) {
+    return (
+      <div className="column">
+        <h2>Connection</h2>
+        <p className="lede">
+          Nothing can be reported until the workbench is answering again. What
+          was on screen before is out of date.
+        </p>
+      </div>
+    );
+  }
+
   const s = status.data;
   if (!s) return <p className="notice bad">{String(status.error)}</p>;
 

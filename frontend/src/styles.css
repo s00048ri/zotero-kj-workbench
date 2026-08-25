@@ -427,6 +427,10 @@ label.stack > span { display: block; margin-bottom: 0.25rem; font-size: 0.85rem;
   margin: 0 0 1.25rem;
 }
 .notice.bad { border-left-color: #a8443b; background: color-mix(in srgb, #a8443b 8%, transparent); }
+/* the app's own backend being gone is a different failure from every other,
+   and the only one the researcher can fix in a terminal */
+.notice.offline { margin: 0; border-radius: 0; padding: 0.7rem 1.5rem;
+  display: flex; gap: 0.75rem; align-items: baseline; flex-wrap: wrap; }
 
 .stats { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 1.5rem; font-size: 0.9rem; }
 .stats dt { color: var(--graphite); }

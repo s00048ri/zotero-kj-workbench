@@ -340,11 +340,25 @@ export class ApiError extends Error {
   }
 }
 
+/** The app's own backend being unreachable is status 0 — a different problem
+ *  from any HTTP error, and the one a raw "Failed to fetch" hides. */
+export const OFFLINE = 0;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
-  });
+  let response: Response;
+  try {
+    response = await fetch(path, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    });
+  } catch {
+    throw new ApiError(
+      `The workbench itself is not answering at ${window.location.origin}.`,
+      OFFLINE,
+      "Check that it is still running — `python -m zkj` in the project " +
+        "directory — and that this page is on the port it is serving.",
+    );
+  }
   const text = await response.text();
   const body = text ? JSON.parse(text) : null;
   if (!response.ok) {
