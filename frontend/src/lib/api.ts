@@ -96,6 +96,10 @@ export interface Card {
   locator: Locator;
   linked_ideas: LinkedCard[];
   parent: LinkedCard | null;
+  /** A highlight a page break split in two, and the halves it came from. */
+  joined_text: string | null;
+  joined_ids: string[];
+  is_continuation: boolean;
 }
 
 export interface CardPage {

@@ -172,6 +172,11 @@ class CardOut(BaseModel):
     locator: LocatorOut
     linked_ideas: list[LinkedCardOut] = []
     parent: LinkedCardOut | None = None
+    # A highlight split by a page break: the whole passage, and the cards it
+    # was assembled from.
+    joined_text: str | None = None
+    joined_ids: list[str] = []
+    is_continuation: bool = False
 
 
 class CardPageOut(BaseModel):

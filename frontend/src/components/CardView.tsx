@@ -46,6 +46,10 @@ export default function CardView({
   const hasMyNote = card.linked_ideas.some((i) => i.origin === "annotation_comment");
 
   const mine = card.kind === "idea";
+  // A page break split this highlight in two. What the source says is both
+  // halves, so that is what is shown and what every export carries.
+  const split = card.joined_ids.length > 1;
+  const text = card.joined_text ?? card.text;
   const patch = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
       api.patchCard(projectId, card.id, body),
@@ -69,8 +73,13 @@ export default function CardView({
             onChange={(e) => onSelect(card.id, e.target.checked)}
           />
         )}
-        <span className="id">{card.human_id}</span>
+        <span className="id">{split ? card.joined_ids.join(" + ") : card.human_id}</span>
         <Voice mine={mine} />
+        {split && (
+          <span className="meta" title="One passage, split across a page break">
+            joined
+          </span>
+        )}
         {card.color && <span className="swatch" style={{ background: card.color }} />}
         {card.zotero_note_key && (
           <span className="meta" title="This card is a note in Zotero">
@@ -122,12 +131,12 @@ export default function CardView({
       )}
 
       {mine ? (
-        <p className="body" lang={isJapanese(card.text) ? "ja" : undefined}>
-          {card.text}
+        <p className="body" lang={isJapanese(text) ? "ja" : undefined}>
+          {text}
         </p>
       ) : (
-        <blockquote className="quote" lang={isJapanese(card.text) ? "ja" : undefined}>
-          {card.text}
+        <blockquote className="quote" lang={isJapanese(text) ? "ja" : undefined}>
+          {text}
         </blockquote>
       )}
 

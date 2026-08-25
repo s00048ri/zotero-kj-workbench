@@ -786,3 +786,68 @@ def test_material_already_used_by_a_section_is_not_repeated(project):
 def test_the_export_says_when_no_question_was_chosen(project):
     conn, p = project
     assert "Not chosen" in paper_markdown(conn, p["id"])
+
+
+def test_a_section_and_a_group_of_the_same_name_are_one_thing(project):
+    """A researcher who labels a group "AI is politics" and then makes a
+    section called "AI is politics" meant one thing, not two."""
+    conn, p = project
+    path = grouped(conn, p["id"], "P/_KJ/Sec 3")
+    save_label(conn, p["id"], path, "AI is politics")
+    empty = add_section(conn, p["id"], "AI is politics")
+
+    made = adopt_groups_as_sections(conn, p["id"])
+    assert [s["id"] for s in made] == [empty["id"]]
+    assert len(list_sections(conn, p["id"])) == 1
+    assert len(section_evidence(conn, empty["id"])) == 6
+
+
+def test_a_section_that_already_holds_evidence_is_left_alone(project):
+    conn, p = project
+    path = grouped(conn, p["id"], "P/_KJ/Sec 3")
+    save_label(conn, p["id"], path, "AI is politics")
+    section = add_section(conn, p["id"], "AI is politics")
+    assign_card(conn, section["id"], quote(conn)["id"], citation_mode="direct_quote")
+
+    assert adopt_groups_as_sections(conn, p["id"]) == []
+    evidence = section_evidence(conn, section["id"])
+    assert len(evidence) == 1
+    assert evidence[0]["citation_mode"] == "direct_quote"
+
+
+def test_an_unwritten_label_is_said_out_loud_in_the_export(project):
+    """Silence reads as "no label was possible" — and a folder name is not a
+    claim about the passages under it."""
+    conn, p = project
+    grouped(conn, p["id"], "P/_KJ/Sec 2")
+    markdown = paper_markdown(conn, p["id"])
+    assert "No label written" in markdown
+    assert "the folder name is not a claim" in markdown
+
+
+def test_a_source_that_cannot_be_cited_normally_is_named(project):
+    """A model asked for "(Author, year)" where the record has neither will
+    supply something. Naming the gap is the difference between a citation to
+    check and a citation to discover."""
+    conn, p = project
+    conn.execute("UPDATE source SET creators_short = NULL, year = NULL "
+                 "WHERE zotero_item_key = 'SRC1'")
+    content = build(conn, p, "paper").content
+    assert "SOURCES WITH INCOMPLETE RECORDS" in content
+    assert "Human oversight of autonomous agents" in content
+    assert "no author, no date" in content
+    assert "not even a likely one" in content
+
+
+def test_a_complete_library_gets_no_such_block(project):
+    conn, p = project
+    conn.execute("UPDATE source SET creators_short = 'Someone', year = '2020'")
+    assert "INCOMPLETE RECORDS" not in build(conn, p, "paper").content
+
+
+def test_the_export_marks_the_records_to_fix(project):
+    conn, p = project
+    conn.execute("UPDATE source SET year = NULL WHERE zotero_item_key = 'SRC1'")
+    markdown = paper_markdown(conn, p["id"])
+    assert "this Zotero record has no date" in markdown
+    assert "refer to it by title until it is fixed" in markdown

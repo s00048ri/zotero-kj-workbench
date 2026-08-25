@@ -25,6 +25,7 @@ from .compose import (
     section_evidence,
     unassigned_cards,
 )
+from .continuations import label_of, quotation_of
 from .prompts import DRAFT_TASK, PAPER_RULES, QUOTING
 from .validate import EVIDENCE_NEEDED_RE, to_markdown
 
@@ -54,11 +55,16 @@ def card_markdown(card: dict[str, Any]) -> list[str]:
     if card["kind"] == "quote":
         citation = card.get("citation") or ""
         estimated = " *(locator estimated — verify)*" if card.get("locator_estimated") else ""
-        lines.append(f"**[{card['human_id']}]** {citation}{estimated}")
+        split = (
+            " *(one passage, split across a page break)*"
+            if len(card.get("joined_ids") or []) > 1
+            else ""
+        )
+        lines.append(f"**[{label_of(card)}]** {citation}{estimated}{split}")
         lines.append("")
-        lines.append(f"> {card['text']}")
+        lines.append(f"> {quotation_of(card)}")
     else:
-        lines.append(f"**[{card['human_id']}]** the researcher's own words")
+        lines.append(f"**[{label_of(card)}]** the researcher's own words")
         lines.append("")
         lines.append(card["text"])
     if card.get("citation_mode") and card.get("argument_role"):
@@ -202,6 +208,14 @@ def paper_markdown(
             lines += [f"### {path.rsplit('/', 1)[-1]}", ""]
             if labels.get(path):
                 lines += [f"*The researcher's label: {labels[path]}*", ""]
+            else:
+                # Silence here reads as "no label was possible". Say which it is,
+                # so nothing downstream takes a folder name for a claim.
+                lines += [
+                    "*No label written — the folder name is not a claim about "
+                    "these passages.*",
+                    "",
+                ]
             for card in cards:
                 lines += card_markdown(card)
 
@@ -238,9 +252,24 @@ def paper_markdown(
         ):
             key = keys.get(row["id"])
             name = row["creators_short"] or "—"
+            thin = (
+                "  ← **this Zotero record has "
+                + " and ".join(
+                    filter(
+                        None,
+                        [
+                            "no author" if not row["creators_short"] else None,
+                            "no date" if not row["year"] else None,
+                        ],
+                    )
+                )
+                + "**; refer to it by title until it is fixed"
+                if not row["creators_short"] or not row["year"]
+                else ""
+            )
             lines.append(
                 f"- `@{key}` — {name} {row['year'] or 'n.d.'}, *{row['title'] or '—'}* "
-                f"(Zotero {row['zotero_item_key']})"
+                f"(Zotero {row['zotero_item_key']}){thin}"
             )
         lines.append("")
 

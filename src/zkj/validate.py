@@ -28,6 +28,7 @@ from typing import Any
 from .cards import CARD_SELECT, citation_of
 from .citekeys import cite_marker, citekeys
 from .compose import section_evidence
+from .continuations import attach
 from .store import insert, now_iso
 
 CITE_RE = re.compile(r"\[\[CITE:\s*([A-Za-z0-9\-]+)\s*\]\]")
@@ -232,6 +233,10 @@ def evidence_for(
         card["argument_role"] = None
         card["user_instruction"] = None
         cards[card["human_id"]] = card
+    # Every card stays in the whitelist, halves of a split passage included: a
+    # draft citing one is citing something real, even though the prompt only
+    # offered the whole.
+    attach(conn, list(cards.values()))
     return cards
 
 

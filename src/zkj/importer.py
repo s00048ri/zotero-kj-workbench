@@ -27,6 +27,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from . import gbooks
+from .continuations import is_continuation
 from .locators import NO_LOCATOR, EpubIndex, Locator, resolve_locator
 from .store import insert, new_id, now_iso, transaction, upsert
 from .text import html_to_text, normalise_quote
@@ -97,6 +98,7 @@ class ImportStats:
     epub_unreadable: int = 0
     locator_none: int = 0
     locator_estimated: int = 0
+    joined_highlights: int = 0
     own_notes_seen: int = 0
     placements_read: int = 0
     still_in_inbox: int = 0
@@ -349,6 +351,36 @@ class Importer:
                 project_id, source_id, attachment_id, attachment,
                 annotation, prior, epub, page_count,
             )
+        self._link_continuations(record.annotations)
+
+    def _link_continuations(self, annotations: list[Annotation]) -> None:
+        """A highlight split by a page break is one quotation, not two.
+
+        The cards are left alone — each keeps its own locator and its own note
+        — and the link says how to read them together.
+        """
+        for first, second in zip(annotations, annotations[1:], strict=False):
+            head = self._card_ids.get(f"annotation:{first.key}:quote")
+            tail = self._card_ids.get(f"annotation:{second.key}:quote")
+            if not head or not tail:
+                continue
+            joins = is_continuation(
+                {"text": first.text, "comment": first.comment,
+                 "sort_index": first.sort_index},
+                {"text": second.text, "comment": second.comment,
+                 "sort_index": second.sort_index},
+            )
+            current = self.conn.execute(
+                "SELECT continues_card_id FROM card WHERE id = ?", (tail,)
+            ).fetchone()["continues_card_id"]
+            wanted = head if joins else None
+            if current != wanted:
+                self.conn.execute(
+                    "UPDATE card SET continues_card_id = ? WHERE id = ?",
+                    (wanted, tail),
+                )
+            if joins:
+                self.stats.joined_highlights += 1
 
     def _epub_index(self, attachment_key: str) -> EpubIndex | None:
         if attachment_key in self._epubs:

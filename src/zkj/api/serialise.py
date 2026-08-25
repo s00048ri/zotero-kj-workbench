@@ -47,6 +47,9 @@ def card_out(row: dict[str, Any]) -> CardOut:
             estimated_page=locator.estimated_page,
             detail=locator.detail,
         ),
+        joined_text=row.get("joined_text"),
+        joined_ids=row.get("joined_ids") or [],
+        is_continuation=bool(row.get("is_continuation")),
         linked_ideas=[LinkedCardOut(**_linked(c)) for c in row.get("linked_ideas", [])],
         parent=LinkedCardOut(**_linked(row["parent"])) if row.get("parent") else None,
     )

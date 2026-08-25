@@ -29,6 +29,7 @@ from typing import Any
 
 from .cards import CARD_SELECT, citation_of
 from .compose import chosen_question, list_claims, list_sections, section_evidence
+from .continuations import attach, label_of, quotation_of
 from .groups import list_groups
 from .store import insert, now_iso
 
@@ -114,7 +115,7 @@ WHOSE_WORDS = (
 
 def _card_block(card: dict[str, Any], *, index: str = "") -> str:
     kind = "quote" if card["kind"] == "quote" else "idea"
-    head = f"[{card['human_id']}] {kind}"
+    head = f"[{label_of(card)}] {kind}"
     if index:
         head += f" | {index}"
     lines = [head]
@@ -123,7 +124,11 @@ def _card_block(card: dict[str, Any], *, index: str = "") -> str:
         if citation:
             estimated = " (locator estimated — verify)" if card.get("locator_estimated") else ""
             lines.append(f"  {citation}{estimated}")
-        lines.append(f"  \"{card['text']}\"")
+        lines.append(f"  \"{quotation_of(card)}\"")
+        if len(card.get("joined_ids") or []) > 1:
+            lines.append(
+                "  (one passage, split across a page break in the PDF — quote it whole)"
+            )
     else:
         lines.append("  (the researcher's own words)")
         lines.append(f"  {card['text']}")
@@ -150,7 +155,10 @@ def _all_cards(conn: sqlite3.Connection, project_id: str) -> list[dict[str, Any]
     ]
     for row in rows:
         row["citation"] = citation_of(row)
-    return rows
+    attach(conn, rows)
+    # A half-sentence offered on its own would be quoted on its own. The whole
+    # passage travels under the card it starts on.
+    return [r for r in rows if not r["is_continuation"]]
 
 
 def _buckets(conn: sqlite3.Connection, project_id: str) -> list[dict[str, Any]]:
@@ -164,6 +172,9 @@ def _buckets(conn: sqlite3.Connection, project_id: str) -> list[dict[str, Any]]:
     """
     groups = list_groups(conn, project_id)
     if groups:
+        for group in groups:
+            attach(conn, group.cards)
+            group.cards[:] = [c for c in group.cards if not c["is_continuation"]]
         placed = {c["id"] for g in groups for c in g.cards}
         buckets = [
             {
@@ -212,6 +223,48 @@ def _bucket_block(bucket: dict[str, Any]) -> str:
         )
     lines.append("")
     lines += [_card_block(card) for card in bucket["cards"]]
+    return "\n".join(lines)
+
+
+def thin_sources(conn: sqlite3.Connection, project_id: str) -> list[dict[str, Any]]:
+    """Sources whose Zotero record cannot produce a normal citation."""
+    return [
+        dict(r)
+        for r in conn.execute(
+            "SELECT zotero_item_key, title, creators_short, year FROM source "
+            "WHERE project_id = ? AND (creators_short IS NULL OR year IS NULL) "
+            "AND id IN (SELECT source_id FROM card WHERE project_id = ?)",
+            (project_id, project_id),
+        )
+    ]
+
+
+def _thin_block(conn: sqlite3.Connection, project_id: str) -> str | None:
+    """Say which citations cannot be written, rather than let one be invented.
+
+    A model asked for "(Author, year)" where the record has neither will supply
+    something. Naming the gap first is the difference between a citation to
+    check and a citation to discover.
+    """
+    thin = thin_sources(conn, project_id)
+    if not thin:
+        return None
+    lines = [
+        "These sources' Zotero records are incomplete. Refer to them by title.",
+        "Do not supply an author or a year for them — not even a likely one.",
+        "",
+    ]
+    for source in thin:
+        missing = ", ".join(
+            filter(
+                None,
+                [
+                    "no author" if not source["creators_short"] else None,
+                    "no date" if not source["year"] else None,
+                ],
+            )
+        )
+        lines.append(f"- “{source['title'] or '(untitled)'}” — {missing}")
     return "\n".join(lines)
 
 
@@ -473,6 +526,9 @@ def section_prompt(
             + "\n\n".join(blocks),
         ),
     ]
+    thin = _thin_block(conn, project["id"])
+    if thin:
+        parts.append(_wrap("SOURCES WITH INCOMPLETE RECORDS", thin))
     if estimated:
         parts.append(
             _wrap(
@@ -606,6 +662,9 @@ def paper_prompt(
         _wrap("WHAT THE RESEARCHER HAS FIXED", fixed),
         _wrap("WHOSE WORDS", WHOSE_WORDS.rstrip()),
     ]
+    thin = _thin_block(conn, project["id"])
+    if thin:
+        parts.append(_wrap("SOURCES WITH INCOMPLETE RECORDS", thin))
     parts += [_wrap(f"GROUP — {b['name']}", _bucket_block(b)) for b in buckets]
 
     return Prompt(

@@ -12,6 +12,7 @@ import sqlite3
 from typing import Any
 
 from .cards import citation_of
+from .continuations import attach
 from .store import insert, now_iso
 
 CITATION_MODES = ("direct_quote", "paraphrase", "reference_only")
@@ -282,6 +283,7 @@ def section_evidence(
     rows = [dict(r) for r in conn.execute(sql, (section_id,))]
     for row in rows:
         row["citation"] = citation_of(row)
+    attach(conn, rows)
     return rows
 
 
@@ -298,17 +300,25 @@ def adopt_groups_as_sections(
     makes that grouping into an outline they can rename, reorder and prune,
     without asking them to build one from nothing.
 
-    A group that already has a section of the same name is left alone, so this
-    can be pressed twice.
+    A section that already carries the same name is the same section — a
+    researcher who wrote "AI is politics" as a group's label and then made a
+    section called "AI is politics" meant one thing, and the tool has no
+    business treating them as two. An empty one of those is filled from the
+    group; one that already holds evidence is left exactly as it is.
     """
     from .groups import list_groups  # circular at module level
 
-    existing = {s["title"] for s in list_sections(conn, project_id)}
+    existing = {s["title"]: s for s in list_sections(conn, project_id)}
     made: list[dict[str, Any]] = []
     for group in list_groups(conn, project_id):
         title = group.label["text"].split("\n\n")[0] if group.label else group.name
         title = title.rstrip(".")
-        if title in existing:
+        already = existing.get(title)
+        if already is not None:
+            if already["evidence_count"]:
+                continue
+            _fill_section(conn, already["id"], group.cards)
+            made.append(_one(conn, "outline_section", already["id"]))
             continue
         section = add_section(
             conn,
@@ -318,16 +328,22 @@ def adopt_groups_as_sections(
             if group.label
             else f"What the passages under “{group.name}” add up to.",
         )
-        for card in group.cards:
-            assign_card(
-                conn,
-                section["id"],
-                card["id"],
-                citation_mode="paraphrase" if card["kind"] == "quote" else "reference_only",
-            )
-        existing.add(title)
+        _fill_section(conn, section["id"], group.cards)
+        existing[title] = {**section, "evidence_count": len(group.cards)}
         made.append(section)
     return made
+
+
+def _fill_section(
+    conn: sqlite3.Connection, section_id: str, cards: list[dict[str, Any]]
+) -> None:
+    for card in cards:
+        assign_card(
+            conn,
+            section_id,
+            card["id"],
+            citation_mode="paraphrase" if card["kind"] == "quote" else "reference_only",
+        )
 
 
 def move_section(conn: sqlite3.Connection, section_id: str, delta: int) -> list[dict[str, Any]]:
@@ -372,7 +388,10 @@ def unassigned_cards(
     ]
     for row in rows:
         row["citation"] = citation_of(row)
-    return rows
+    attach(conn, rows)
+    # A half-sentence written out on its own would be quoted on its own; the
+    # whole passage travels under the card it starts on.
+    return [r for r in rows if not r["is_continuation"]]
 
 
 # -- helpers --------------------------------------------------------------

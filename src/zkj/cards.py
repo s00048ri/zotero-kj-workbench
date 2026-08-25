@@ -20,6 +20,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from typing import Any
 
+from .continuations import attach
 from .locators import Locator
 
 CARD_SELECT = """
@@ -136,6 +137,7 @@ def list_cards(
     ).fetchall()
 
     cards = [dict(r) for r in rows]
+    attach(conn, cards)
     _attach_relations(conn, project_id, cards)
     return CardPage(cards=cards, total=total, counts=summary(conn, project_id))
 

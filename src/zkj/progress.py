@@ -102,8 +102,15 @@ def progress(
         (project_id,),
     ).fetchone()[0]
 
+    thin = conn.execute(
+        "SELECT COUNT(*) FROM source WHERE project_id = ? "
+        "AND (creators_short IS NULL OR year IS NULL) "
+        "AND id IN (SELECT source_id FROM card WHERE project_id = ?)",
+        (project_id, project_id),
+    ).fetchone()[0]
     counts = {
         **cards,
+        "sources_incomplete": thin,
         "pending_notes": pending,
         "in_zotero": in_zotero,
         "read_back": read_back,
@@ -123,6 +130,12 @@ def progress(
                 + (
                     f", and {_plural(cards['ideas'], 'card')} in your own words"
                     if cards["ideas"]
+                    else ""
+                )
+                + (
+                    f". {_plural(thin, 'source')} cannot be cited normally — "
+                    f"the Zotero record has no author or no date"
+                    if thin
                     else ""
                 )
                 if cards["total"]
