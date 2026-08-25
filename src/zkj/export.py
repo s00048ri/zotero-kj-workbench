@@ -64,7 +64,13 @@ def card_markdown(card: dict[str, Any]) -> list[str]:
         lines.append("")
         lines.append(f"> {quotation_of(card)}")
     else:
-        lines.append(f"**[{label_of(card)}]** the researcher's own words")
+        citation = card.get("citation") or ""
+        lines.append(
+            f"**[{label_of(card)}]** the researcher's own words, written while "
+            f"reading {citation}"
+            if citation
+            else f"**[{label_of(card)}]** the researcher's own words"
+        )
         lines.append("")
         lines.append(card["text"])
     if card.get("citation_mode") and card.get("argument_role"):

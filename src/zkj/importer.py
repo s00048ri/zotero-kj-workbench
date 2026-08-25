@@ -103,6 +103,8 @@ class ImportStats:
     placements_read: int = 0
     still_in_inbox: int = 0
     unknown_kj_notes: int = 0
+    notes_gone: int = 0
+    notes_outside: int = 0
 
     def as_dict(self) -> dict[str, int]:
         return asdict(self)
@@ -167,6 +169,7 @@ class Importer:
                     tree, collection_ids,
                 )
             self._link_comment_cards(project_id)
+            self._reconcile_notes(project_id)
             self.conn.execute(
                 "UPDATE project SET last_import_at = ? WHERE id = ?",
                 (now_iso(), project_id),
@@ -593,6 +596,50 @@ class Importer:
             self.stats.placements_read += 1
             if not meaningful:
                 self.stats.still_in_inbox += 1
+
+    def _reconcile_notes(self, project_id: str) -> None:
+        """Notes this tool made that the walk did not find.
+
+        A card can claim to be a note in Zotero long after the note has been
+        deleted there, and nothing said so: the Groups screen went on showing
+        groups built out of notes that no longer existed. So each unseen note
+        is asked about directly.
+
+        Deleted in Zotero → the claim is dropped, because it is false. The card
+        itself, its text, its label and its locator are untouched: what the
+        researcher wrote is theirs, and only the tool's own bookkeeping is
+        corrected. Moved out of the project instead → the note is still real,
+        so its key is kept and only its place in this project is cleared.
+
+        A note in Zotero's trash is gone, not moved. It is absent from every
+        listing but still answers when asked for by key, so asking is not
+        enough — the deleted flag has to be read, or a whole trashed batch
+        reports itself as merely relocated.
+        """
+        rows = self.conn.execute(
+            "SELECT id, zotero_note_key FROM card WHERE project_id = ? "
+            "AND materialized_at IS NOT NULL AND zotero_note_key IS NOT NULL",
+            (project_id,),
+        ).fetchall()
+        for row in rows:
+            if row["id"] in self._placed:
+                continue
+            item = self.client.item(row["zotero_note_key"])
+            trashed = bool((item or {}).get("data", item or {}).get("deleted"))
+            if item is None or trashed:
+                self.conn.execute(
+                    "UPDATE card SET zotero_note_key = NULL, materialized_at = NULL, "
+                    "kj_path = NULL, kj_collection_keys_json = NULL WHERE id = ?",
+                    (row["id"],),
+                )
+                self.stats.notes_gone += 1
+            else:
+                self.conn.execute(
+                    "UPDATE card SET kj_path = NULL, kj_collection_keys_json = NULL "
+                    "WHERE id = ?",
+                    (row["id"],),
+                )
+                self.stats.notes_outside += 1
 
     # -- cards -------------------------------------------------------------
 

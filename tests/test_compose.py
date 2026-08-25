@@ -851,3 +851,46 @@ def test_the_export_marks_the_records_to_fix(project):
     markdown = paper_markdown(conn, p["id"])
     assert "this Zotero record has no date" in markdown
     assert "refer to it by title until it is fixed" in markdown
+
+
+# -- a note written under a book keeps the book ---------------------------
+
+
+def test_a_note_written_under_a_source_carries_it_into_the_prompt(project):
+    """"My note" and "my note on Smith" are different things, and only one of
+    them tells a reader what the researcher was thinking about."""
+    conn, p = project
+    content = build(conn, p, "paper").content
+    child = dict(conn.execute(
+        "SELECT * FROM card WHERE origin = 'child_note'").fetchone())
+    assert child["text"] in content
+    assert "written while reading Smith 2025" in content
+
+
+def test_it_is_still_the_researcher_s_thought_not_the_source_s(project):
+    conn, p = project
+    content = build(conn, p, "paper").content
+    assert "does not make the thought that author's" in flat(content)
+    assert "it is not a citation to them" in flat(content)
+
+
+def test_a_comment_on_a_highlight_names_the_page_it_was_written_at(project):
+    conn, p = project
+    content = build(conn, p, "paper").content
+    assert "written while reading Smith 2025, p. 132" in content
+
+
+def test_a_standalone_note_has_no_source_and_claims_none(project):
+    conn, p = project
+    content = build(conn, p, "paper").content
+    standalone = dict(conn.execute(
+        "SELECT * FROM card WHERE origin = 'standalone_note'").fetchone())
+    index = content.index(standalone["text"])
+    preamble = content[index - 120 : index]
+    assert "(the researcher's own words)" in preamble
+
+
+def test_the_export_carries_it_too(project):
+    conn, p = project
+    markdown = paper_markdown(conn, p["id"])
+    assert "the researcher's own words, written while reading Smith 2025" in markdown

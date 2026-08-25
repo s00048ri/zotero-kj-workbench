@@ -40,6 +40,12 @@ function ImportSummary({ result }: { result: ImportResult }) {
     s.unknown_kj_notes
       ? `${s.unknown_kj_notes} notes from elsewhere left alone`
       : null,
+    // Notes this tool made that Zotero no longer has. Saying nothing would
+    // leave the counts above quietly wrong.
+    s.notes_gone ? `${s.notes_gone} of your notes are gone from Zotero` : null,
+    s.notes_outside
+      ? `${s.notes_outside} moved out of this collection`
+      : null,
   ].filter(Boolean);
   return <span className="meta"> {parts.join(" · ")}</span>;
 }

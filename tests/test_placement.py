@@ -156,3 +156,98 @@ def test_moving_a_card_to_another_theme_updates_the_grouping(library):
 
     library.reimport()
     assert library.kj_path("annotation:ANN1:quote").endswith("Capacity is fiscal")
+
+
+# -- when the notes are gone ----------------------------------------------
+
+
+def test_a_note_deleted_in_zotero_stops_being_claimed(library):
+    """A card went on saying it was a note in Zotero long after the note was
+    deleted there, and the Groups screen showed groups built out of nothing."""
+    library.drag("annotation:ANN1:quote", "THEME1")
+    library.reimport()
+    assert library.kj_path("annotation:ANN1:quote").endswith("organisational")
+
+    # the researcher deletes every KJ note in Zotero
+    library.fake.created_items.clear()
+    library.fake.data["top"][library.inbox_key] = []
+    library.fake.data["top"]["THEME1"] = []
+
+    _, stats = library.reimport()
+    assert stats.notes_gone == 5
+    assert library.conn.execute(
+        "SELECT COUNT(*) FROM card WHERE materialized_at IS NOT NULL"
+    ).fetchone()[0] == 0
+    assert library.kj_path("annotation:ANN1:quote") is None
+
+
+def test_what_the_researcher_wrote_survives_the_correction(library):
+    """Only the tool's own bookkeeping is wrong, so only that is corrected."""
+    card = library.conn.execute(
+        "SELECT id FROM card WHERE origin_key = 'annotation:ANN1:quote'"
+    ).fetchone()["id"]
+    library.conn.execute(
+        "UPDATE card SET human_label = 'my heading', status = 'excluded' WHERE id = ?",
+        (card,),
+    )
+    library.fake.created_items.clear()
+    library.fake.data["top"][library.inbox_key] = []
+
+    library.reimport()
+    row = library.conn.execute(
+        "SELECT human_label, status, text FROM card WHERE id = ?", (card,)
+    ).fetchone()
+    assert row["human_label"] == "my heading"
+    assert row["status"] == "excluded"
+    assert "oversight" in row["text"]
+
+
+def test_a_note_moved_out_of_the_project_keeps_its_key(library):
+    """It is still a real note — it is just not in this project any more."""
+    note_key = library.note_key("annotation:ANN1:quote")
+    entry = library.entry(note_key)
+    library.fake.data["top"][library.inbox_key].remove(entry)
+    # still exists in Zotero, just not under this project's root
+    assert note_key in library.fake.created_items
+
+    _, stats = library.reimport()
+    assert stats.notes_outside == 1
+    assert stats.notes_gone == 0
+    row = library.conn.execute(
+        "SELECT zotero_note_key, kj_path FROM card WHERE origin_key = ?",
+        ("annotation:ANN1:quote",),
+    ).fetchone()
+    assert row["zotero_note_key"] == note_key
+    assert row["kj_path"] is None
+
+
+def test_nothing_is_asked_about_when_nothing_was_materialised(tmp_path):
+    """The check costs one request per missing note and none otherwise."""
+    fake = FakeZotero(copy.deepcopy(load_fixture()))
+    conn = connect(tmp_path / "fresh.sqlite3")
+    with fake.client() as client:
+        run_import(conn, client, "p", "ROOT")
+        before = len(fake.requests)
+        _, stats = run_import(conn, client, "p", "ROOT")
+    assert stats.notes_gone == 0
+    assert stats.notes_outside == 0
+    assert len(fake.requests) - before < 40  # no per-card lookups
+
+
+def test_a_note_in_zoteros_trash_is_gone_not_moved(library):
+    """It is absent from every listing but still answers when asked for by
+    key, so a whole trashed batch would otherwise report itself as relocated."""
+    note_key = library.note_key("annotation:ANN1:quote")
+    library.fake.trashed.add(note_key)
+    entry = library.entry(note_key)
+    library.fake.data["top"][library.inbox_key].remove(entry)
+
+    _, stats = library.reimport()
+    assert stats.notes_gone == 1
+    assert stats.notes_outside == 0
+    row = library.conn.execute(
+        "SELECT zotero_note_key, materialized_at FROM card WHERE origin_key = ?",
+        ("annotation:ANN1:quote",),
+    ).fetchone()
+    assert row["zotero_note_key"] is None
+    assert row["materialized_at"] is None

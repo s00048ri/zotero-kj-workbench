@@ -65,6 +65,9 @@ class FakeZotero:
         self.valid_keys: set[str] = set()
         self.spent_keys: set[str] = set()
         self.created_items: dict[str, dict[str, Any]] = {}
+        # keys the researcher has moved to Zotero's trash: absent from every
+        # listing, still answering when asked for by key
+        self.trashed: set[str] = set()
         self.created_collections: dict[str, dict[str, Any]] = {}
         self.deleted: list[str] = []
         self.updated: list[dict[str, Any]] = []
@@ -233,8 +236,11 @@ class FakeZotero:
             key = path.split("/")[-1]
             if key in self.created_items:
                 item = self.created_items[key]
+                data = dict(item)
+                if key in self.trashed:
+                    data["deleted"] = True
                 return self._json({"key": key, "version": item.get("version", 1),
-                                   "data": item}, request)
+                                   "data": data}, request)
             found = self._find(key)
             if found is not None:
                 return self._json(found, request)

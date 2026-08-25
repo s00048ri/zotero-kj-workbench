@@ -197,6 +197,12 @@ def test_re_import_preserves_every_edit(db, client, imported):
         if a["data"]["key"] == "ANN1":
             a["data"]["annotationText"] = "The passage, re-highlighted."
     fake = FakeZotero(data)
+    # The note this card was filed as has to exist in Zotero, or the import is
+    # right to stop claiming it does — see test_placement.py.
+    fake.created_items["KJNOTE7"] = {
+        "key": "KJNOTE7", "version": 1, "itemType": "note", "note": "<p>x</p>",
+        "tags": [{"tag": "kj-card"}], "collections": [],
+    }
     with fake.client() as c:
         _, stats = run_import(db, c, "agentic-governance", "ROOT")
 
@@ -206,7 +212,9 @@ def test_re_import_preserves_every_edit(db, client, imported):
     assert after["human_label"] == "my own heading"
     assert after["status"] == "excluded"
     assert after["zotero_note_key"] == "KJNOTE7"
-    assert after["kj_path"] == "Agentic Governance/_KJ/Theme"
+    # kj_path is cleared: the note was not found anywhere under this project,
+    # so where it sits here is no longer known. What the researcher wrote is
+    # untouched.
     assert after["materialized_at"] == "2026-08-24T00:00:00+00:00"
 
 

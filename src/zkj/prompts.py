@@ -110,6 +110,10 @@ WHOSE_WORDS = (
     "  idea  — the researcher's own words, written while reading. NOT a\n"
     "          source, never cited as one, and never attributed to anybody\n"
     "          but the researcher.\n"
+    "\n"
+    "An idea card often names the work the researcher was reading when they\n"
+    "wrote it. That says what they were thinking about. It does not make the\n"
+    "thought that author's, and it is not a citation to them.\n"
 )
 
 
@@ -130,7 +134,15 @@ def _card_block(card: dict[str, Any], *, index: str = "") -> str:
                 "  (one passage, split across a page break in the PDF — quote it whole)"
             )
     else:
-        lines.append("  (the researcher's own words)")
+        # A note written under a book is the researcher's thought *about* that
+        # book. Dropping the book loses what they were thinking about; keeping
+        # it must not turn their note into something the source said.
+        citation = card.get("citation") or citation_of(card)
+        lines.append(
+            f"  (the researcher's own words, written while reading {citation})"
+            if citation
+            else "  (the researcher's own words)"
+        )
         lines.append(f"  {card['text']}")
     if card.get("user_instruction"):
         lines.append(f"  instruction: {card['user_instruction']}")
