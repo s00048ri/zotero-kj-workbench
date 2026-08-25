@@ -497,20 +497,77 @@ def section_prompt(
 
 # -- 5. the whole paper ----------------------------------------------------
 
-PAPER_RULES = """Rules, in force for every section you write:
-- Every source-dependent claim carries a marker: [[CITE:KJ-0042]]
-- Never invent a source, author, date, page number, or quotation. The cards
-  below are the only evidence that exists.
-- Reproduce a quotation exactly, in quotation marks, or restate it entirely in
-  your own words. Do not half-do either: a restatement that tracks the
-  original's wording is the failure this researcher will be checking for.
-- If the argument needs something the evidence does not have, write
-  [EVIDENCE NEEDED: what is missing]. Do not fill the gap.
+PAPER_MODES = ("draft", "assess")
+
+# How the passages are to be used. The default leaves it to the model, per
+# passage, which is what a writer does; the other two are for a researcher who
+# has decided.
+QUOTING = {
+    "model": "For each passage you use, choose one and commit to it: quote it\n"
+    "exactly, in quotation marks, or take only its point and put it entirely in\n"
+    "your own words. Do not half-do either — a restatement that tracks the\n"
+    "original's wording is the failure this researcher will be checking for.",
+    "quote": "Where you use a passage, quote it — exactly, in quotation marks,\n"
+    "and only as much of it as the sentence needs. Do not paraphrase the\n"
+    "passages: this researcher wants the sources' own words on the page.",
+    "ideas": "Do not quote. Take the point of a passage and write it entirely in\n"
+    "your own words — no phrase of the original carried over, no sentence shape\n"
+    "borrowed. The marker still says which passage the claim rests on.",
+}
+
+DRAFT_TASK = """Write a paper from the passages below. A draft — prose in sections,
+with an argument running through them — not an assessment of the material.
+
+A researcher collected these passages and put them into the groups you see.
+Those groups are what sets this paper going: they are not a set to be
+exhausted. Use what serves the argument and leave the rest.
+
+{quoting}
+
+Where the passages do not carry a step the argument needs, write that step
+anyway, in the paper's own voice: reasoning, a definition, a transition, a
+qualification. Mark it [UNSUPPORTED: what you are asserting] so the researcher
+can find it. What you must never do is attribute it to anybody, or invent a
+source, an author, a date, a page number or a quotation. The cards below are
+the only sources that exist.
+
+Every claim that rests on a passage carries its marker: [[CITE:KJ-0042]]
+
+End with three short lists, after the paper:
+  - what you argued that the evidence does not carry
+  - which passages you left out, and why
+  - what the researcher would have to read next"""
+
+ASSESS_TASK = """Read the passages below and tell the researcher what they have.
+
+Do not draft anything. Say:
+  - what clusters the material actually falls into, and where that differs
+    from the groups they made;
+  - which questions this collection could answer, and which it could not;
+  - what is missing — and be clear that a gap here is a gap in what they have
+    read, not necessarily a gap in the literature;
+  - anything in the material that is not what it appears to be: a position
+    paper standing among empirical studies, an argument standing among
+    findings."""
+
+PAPER_RULES = """Rules, in force throughout:
+- Never invent a source, author, date, page number, or quotation.
 - Distinguish what a source states, what the researcher takes it to mean, and
-  what this paper argues."""
+  what this paper argues.
+- An idea card is the researcher's own note. Its content can become the
+  paper's argument; it is never cited as though somebody published it."""
 
 
-def paper_prompt(conn: sqlite3.Connection, project: dict[str, Any]) -> Prompt:
+def paper_prompt(
+    conn: sqlite3.Connection,
+    project: dict[str, Any],
+    mode: str = "draft",
+    quoting: str = "model",
+) -> Prompt:
+    if mode not in PAPER_MODES:
+        raise ValueError(f"mode must be one of {PAPER_MODES}")
+    if quoting not in QUOTING:
+        raise ValueError(f"quoting must be one of {tuple(QUOTING)}")
     buckets = _buckets(conn, project["id"])
     if not buckets:
         raise _no_cards()
@@ -533,20 +590,15 @@ def paper_prompt(conn: sqlite3.Connection, project: dict[str, Any]) -> Prompt:
     )
 
     task = (
-        "Write a paper out of the passages below.\n\n"
-        "A researcher collected and grouped these while reading. Work out what\n"
-        "they add up to, and write the paper that argument deserves.\n\n"
-        "Do it in this order, and show each step:\n"
-        "  1. Say what you take the argument to be, in one paragraph, before\n"
-        "     you draft anything. If the evidence supports more than one, give\n"
-        "     the strongest two and say which you are taking.\n"
-        "  2. Propose the sections, and what each one has to establish.\n"
-        "  3. Draft the paper.\n"
-        "  4. End with two lists: what you inferred rather than were told, and\n"
-        "     what the evidence could not carry.\n\n"
-        + order_note
-        + "\n\n"
-        + PAPER_RULES
+        (
+            DRAFT_TASK.format(quoting=QUOTING[quoting])
+            + "\n\n"
+            + order_note
+            + "\n\n"
+            + PAPER_RULES
+        )
+        if mode == "draft"
+        else ASSESS_TASK
     )
 
     parts = [
@@ -559,11 +611,18 @@ def paper_prompt(conn: sqlite3.Connection, project: dict[str, Any]) -> Prompt:
     return Prompt(
         kind="paper",
         content="\n".join(parts),
-        title="The whole paper",
+        title="The whole paper" if mode == "draft" else "What this material can answer",
         note=(
             f"{total} cards in {len(buckets)} groups."
-            + ("" if has_fixed else " Nothing is fixed, so the argument, the "
-               "sections and their claims are all the model's to propose.")
+            + (
+                ""
+                if has_fixed
+                else " Nothing is fixed, so the argument, the sections and their "
+                "claims are all the model's to propose."
+            )
+            if mode == "draft"
+            else f"{total} cards in {len(buckets)} groups. No drafting — an "
+            "account of what you have."
         ),
     )
 
@@ -577,6 +636,8 @@ def build(
     kind: str,
     *,
     section_id: str | None = None,
+    mode: str = "draft",
+    quoting: str = "model",
 ) -> Prompt:
     if kind == "themes":
         return themes_prompt(conn, project)
@@ -589,7 +650,7 @@ def build(
             raise ValueError("Which section?")
         return section_prompt(conn, project, section_id)
     if kind == "paper":
-        return paper_prompt(conn, project)
+        return paper_prompt(conn, project, mode=mode, quoting=quoting)
     raise ValueError(f"kind must be one of {KINDS}")
 
 

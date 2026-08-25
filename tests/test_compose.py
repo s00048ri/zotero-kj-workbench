@@ -524,16 +524,57 @@ def test_a_passage_containing_quotation_marks_is_still_recognised(section):
 # -- the whole paper, from the clusters alone -----------------------------
 
 
-def test_the_paper_prompt_works_from_nothing_but_the_cards(project):
-    """The point of the thing: highlights in groups, and a paper out of them."""
+def test_the_paper_prompt_asks_for_a_paper_not_an_assessment(project):
+    """Handed the material with no task, a model reasonably reports on it. The
+    prompt has to say plainly that prose in sections is what is wanted."""
     conn, p = project
     prompt = build(conn, p, "paper")
     assert prompt.kind == "paper"
-    assert "Write a paper out of the passages below" in prompt.content
-    assert "say what you take the argument to be" in flat(prompt.content)
-    assert "propose the sections" in flat(prompt.content)
+    assert "prose in sections" in prompt.content
+    assert "not an assessment of the material" in prompt.content
+    assert "not a set to be exhausted" in flat(prompt.content)
     assert "The researcher has fixed nothing yet" in prompt.content
     assert "the argument, the sections and their claims are all the model's" in prompt.note
+
+
+def test_a_gap_is_written_through_rather_than_stopped_at(project):
+    """A draft that halts at every missing step is not a draft. The model may
+    supply the reasoning — never a source — and must mark where it did."""
+    conn, p = project
+    content = build(conn, p, "paper").content
+    assert "[UNSUPPORTED:" in content
+    assert "never do is attribute it to anybody" in flat(content)
+    assert "invent a source, an author, a date, a page number or a quotation" in flat(content)
+
+
+def test_the_assess_mode_is_still_there_for_when_it_is_wanted(project):
+    conn, p = project
+    prompt = build(conn, p, "paper", mode="assess")
+    assert "Do not draft anything" in prompt.content
+    assert "a gap here is a gap in what they have read" in flat(prompt.content)
+    assert prompt.title == "What this material can answer"
+
+
+def test_how_passages_are_used_can_be_left_open_or_decided(project):
+    conn, p = project
+    default = build(conn, p, "paper").content
+    assert "choose one and commit to it" in flat(default)
+
+    quoting = build(conn, p, "paper", quoting="quote").content
+    assert "wants the sources' own words on the page" in flat(quoting)
+    assert "do not paraphrase the passages" in flat(quoting)
+
+    ideas = build(conn, p, "paper", quoting="ideas").content
+    assert "do not quote" in flat(ideas)
+    assert "no phrase of the original carried over" in flat(ideas)
+
+
+def test_an_unknown_mode_or_quoting_choice_is_refused(project):
+    conn, p = project
+    with pytest.raises(ValueError, match="mode"):
+        build(conn, p, "paper", mode="wing it")
+    with pytest.raises(ValueError, match="quoting"):
+        build(conn, p, "paper", quoting="somehow")
 
 
 def test_the_paper_prompt_keeps_whatever_the_researcher_did_fix(project):

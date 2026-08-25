@@ -320,6 +320,7 @@ export interface ValidationOut {
     text: string;
   }[];
   evidence_needed: string[];
+  unsupported: string[];
   findings: Finding[];
   rendered: string;
   stats: Record<string, number | string>;
@@ -548,7 +549,15 @@ export const api = {
 
   promptAvailability: (projectId: string) =>
     request<PromptAvailability>(`/api/projects/${projectId}/prompts`),
-  buildPrompt: (projectId: string, body: { kind: string; section_id?: string }) =>
+  buildPrompt: (
+    projectId: string,
+    body: {
+      kind: string;
+      section_id?: string;
+      mode?: "draft" | "assess";
+      quoting?: "model" | "quote" | "ideas";
+    },
+  ) =>
     request<PromptOut>(`/api/projects/${projectId}/prompts`, {
       method: "POST",
       body: JSON.stringify(body),

@@ -62,6 +62,22 @@ export default function ValidationReport({ result }: { result: DraftResult }) {
             </div>
           ))}
 
+          {v.unsupported.length > 0 && (
+            <>
+              <h4>Written without evidence, and marked as such</h4>
+              <p className="lede" style={{ margin: "0 0 0.5rem" }}>
+                The draft supplied these steps itself rather than stopping.
+                Nothing is attributed to a source — but nothing stands behind
+                them either.
+              </p>
+              <ul className="preview-list">
+                {v.unsupported.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
           {v.evidence_needed.length > 0 && (
             <>
               <h4>Gaps the draft left open, as it was asked to</h4>

@@ -125,8 +125,19 @@ into a chat yourself, and you paste the draft back for checking.
 
 **Nothing has to be specified first.** The shortest path is: highlight, sort
 your notes into subcollections in Zotero, and build one prompt for the whole
-paper. The argument, the sections and what each one claims are worked out from
-the passages and marked as proposals. Anything you *have* decided — a research
+paper. Your groups are what sets the paper going, not a set to be exhausted:
+the argument, the sections and what each one claims are worked out from the
+passages and marked as proposals, and passages that do not serve the argument
+are left out with a reason.
+
+Where the evidence does not carry a step the argument needs, the draft writes
+it anyway in the paper's own voice and marks it `[UNSUPPORTED: …]`. What it may
+never do is attribute it to anybody, or invent a source, an author, a date, a
+page or a quotation. A draft that halts at every missing step is not a draft;
+an unmarked assertion is not honest. Both are avoidable.
+
+Three choices, all optional: draft it or report on what it can answer; quote
+the sources, take only their ideas, or leave that per passage to the model. Anything you *have* decided — a research
 question, a section, a label on a group — is carried through as yours and is
 not the model's to revise. Specifying is how you take a decision back, never a
 gate you pass before the tool will work.

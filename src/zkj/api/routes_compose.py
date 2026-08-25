@@ -74,6 +74,10 @@ class PromptIn(BaseModel):
     kind: str
     section_id: str | None = None
     store: bool = True
+    # paper only: draft it, or report on what the material can answer
+    mode: str = "draft"
+    # paper only: model | quote | ideas
+    quoting: str = "model"
 
 
 class DraftIn(BaseModel):
@@ -305,7 +309,14 @@ def post_prompt(
 ) -> dict[str, Any]:
     project = _project(conn, project_id)
     try:
-        prompt = prompt_builder.build(conn, project, body.kind, section_id=body.section_id)
+        prompt = prompt_builder.build(
+            conn,
+            project,
+            body.kind,
+            section_id=body.section_id,
+            mode=body.mode,
+            quoting=body.quoting,
+        )
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     payload = prompt.as_dict()
@@ -439,6 +450,12 @@ def get_drafts(
 
 
 @router.get("/paper.md", response_class=PlainTextResponse)
-def get_paper(project_id: str, conn: sqlite3.Connection = Depends(get_db)) -> str:
+def get_paper(
+    project_id: str,
+    instructions: bool = True,
+    conn: sqlite3.Connection = Depends(get_db),
+) -> str:
+    """The whole project as one file — with the drafting task written into it,
+    unless the researcher only wants to read it."""
     _project(conn, project_id)
-    return paper_markdown(conn, project_id)
+    return paper_markdown(conn, project_id, instructions=instructions)

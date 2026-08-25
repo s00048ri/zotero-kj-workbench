@@ -25,6 +25,7 @@ from .compose import (
     section_evidence,
     unassigned_cards,
 )
+from .prompts import DRAFT_TASK, PAPER_RULES, QUOTING
 from .validate import EVIDENCE_NEEDED_RE, to_markdown
 
 
@@ -67,7 +68,36 @@ def card_markdown(card: dict[str, Any]) -> list[str]:
     return lines
 
 
-def paper_markdown(conn: sqlite3.Connection, project_id: str) -> str:
+def instructions_block() -> list[str]:
+    """What to do with this file, written into the file.
+
+    A researcher will hand this to a model, because it is the file that holds
+    everything. Handed material and no task, a model reports on the material —
+    which is a reasonable thing to do and not what was wanted. So the task
+    travels with it.
+    """
+    return [
+        "## What to do with this file",
+        "",
+        "<!-- Delete this section if you are reading rather than drafting. -->",
+        "",
+        "If you are a language model being handed this file, the task is:",
+        "",
+        "```",
+        DRAFT_TASK.format(quoting=QUOTING["model"]),
+        "",
+        PAPER_RULES,
+        "```",
+        "",
+        "The passages below are the only sources that exist. Their markers are",
+        "the `[KJ-0000]` numbers; cite them as `[[CITE:KJ-0000]]`.",
+        "",
+    ]
+
+
+def paper_markdown(
+    conn: sqlite3.Connection, project_id: str, *, instructions: bool = True
+) -> str:
     project = dict(
         conn.execute("SELECT * FROM project WHERE id = ?", (project_id,)).fetchone()
     )
@@ -83,6 +113,8 @@ def paper_markdown(conn: sqlite3.Connection, project_id: str) -> str:
         "     evidence for what has not. Quotations are reproduced in full. -->",
         "",
     ]
+    if instructions and not whole:
+        lines += instructions_block()
 
     if question:
         lines += [f"**Research question.** {question['text']}", ""]

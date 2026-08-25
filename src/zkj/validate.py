@@ -32,6 +32,9 @@ from .store import insert, now_iso
 
 CITE_RE = re.compile(r"\[\[CITE:\s*([A-Za-z0-9\-]+)\s*\]\]")
 EVIDENCE_NEEDED_RE = re.compile(r"\[EVIDENCE NEEDED:?\s*([^\]]*)\]", re.I)
+# What the draft asserted on its own account. Allowed — a draft that halts at
+# every missing step is not a draft — but never invisible.
+UNSUPPORTED_RE = re.compile(r"\[+UNSUPPORTED:?\s*([^\]]*)\]+", re.I)
 # A quotation nests: a passage quoted with straight marks often contains
 # curly ones, and vice versa. Matching each kind against its own closing mark
 # keeps the outer span whole instead of stopping at the first inner quote.
@@ -92,6 +95,7 @@ class Validation:
     unknown: list[str] = field(default_factory=list)
     unused: list[dict[str, Any]] = field(default_factory=list)
     evidence_needed: list[str] = field(default_factory=list)
+    unsupported: list[str] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
     rendered: str = ""
     stats: dict[str, Any] = field(default_factory=dict)
@@ -106,6 +110,7 @@ class Validation:
             "unknown": self.unknown,
             "unused": self.unused,
             "evidence_needed": self.evidence_needed,
+            "unsupported": self.unsupported,
             "findings": [asdict(f) for f in self.findings],
             "rendered": self.rendered,
             "stats": self.stats,
@@ -264,6 +269,9 @@ def validate(
     result.evidence_needed = [
         m.group(1).strip() or "(unspecified)" for m in EVIDENCE_NEEDED_RE.finditer(draft)
     ]
+    result.unsupported = [
+        m.group(1).strip() or "(unspecified)" for m in UNSUPPORTED_RE.finditer(draft)
+    ]
 
     spans = quoted_spans(draft)
     for human_id in result.cited:
@@ -309,6 +317,7 @@ def validate(
         "cards_cited": len(result.cited),
         "cards_available": len(evidence),
         "evidence_needed": len(result.evidence_needed),
+        "unsupported": len(result.unsupported),
     }
     return result
 

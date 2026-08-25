@@ -209,3 +209,45 @@ def test_the_paper_export_carries_the_evidence_when_nothing_is_drafted(api):
     paper = client.get(f"/api/projects/{pid}/paper.md").text
     assert card["text"] in paper
     assert "not drafted yet" not in paper
+
+
+def test_the_paper_prompt_takes_a_mode_and_a_quoting_choice(api):
+    conn, client, pid = api
+    draft = client.post(f"/api/projects/{pid}/prompts",
+                        json={"kind": "paper"}).json()
+    assert "prose in sections" in draft["content"]
+
+    assess = client.post(f"/api/projects/{pid}/prompts",
+                         json={"kind": "paper", "mode": "assess"}).json()
+    assert "Do not draft anything" in assess["content"]
+
+    ideas = client.post(f"/api/projects/{pid}/prompts",
+                        json={"kind": "paper", "quoting": "ideas"}).json()
+    assert "Do not quote." in ideas["content"]
+
+    bad = client.post(f"/api/projects/{pid}/prompts",
+                      json={"kind": "paper", "mode": "wing it"})
+    assert bad.status_code == 422
+
+
+def test_the_file_carries_the_task_unless_asked_not_to(api):
+    conn, client, pid = api
+    with_task = client.get(f"/api/projects/{pid}/paper.md").text
+    assert "## What to do with this file" in with_task
+    assert "prose in sections" in with_task
+
+    without = client.get(f"/api/projects/{pid}/paper.md?instructions=false").text
+    assert "## What to do with this file" not in without
+
+
+def test_a_draft_that_wrote_through_a_gap_reports_where(api):
+    conn, client, pid = api
+    card = a_quote(client, pid)
+    draft = (
+        f'Oversight fails [[CITE:{card["human_id"]}]]. '
+        f'[UNSUPPORTED: that this generalises to procurement]'
+    )
+    body = client.post(f"/api/projects/{pid}/draft", json={"content": draft}).json()
+    assert body["validation"]["unsupported"] == [
+        "that this generalises to procurement"
+    ]

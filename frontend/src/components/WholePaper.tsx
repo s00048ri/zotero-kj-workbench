@@ -11,8 +11,19 @@ import ValidationReport from "./ValidationReport";
  * the model is asked to propose and to mark as its own. Specifying is how you
  * take a decision back, not a gate you pass before the tool will work. */
 
+type Mode = "draft" | "assess";
+type Quoting = "model" | "quote" | "ideas";
+
+const QUOTING_LABEL: Record<Quoting, string> = {
+  model: "let it choose per passage",
+  quote: "quote the sources",
+  ideas: "take the ideas only",
+};
+
 export default function WholePaper({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
+  const [mode, setMode] = useState<Mode>("draft");
+  const [quoting, setQuoting] = useState<Quoting>("model");
   const [prompt, setPrompt] = useState<PromptOut | null>(null);
   const [pasted, setPasted] = useState("");
   const [result, setResult] = useState<DraftResult | null>(null);
@@ -23,7 +34,7 @@ export default function WholePaper({ projectId }: { projectId: string }) {
   });
 
   const build = useMutation({
-    mutationFn: () => api.buildPrompt(projectId, { kind: "paper" }),
+    mutationFn: () => api.buildPrompt(projectId, { kind: "paper", mode, quoting }),
     onSuccess: setPrompt,
   });
 
@@ -45,14 +56,50 @@ export default function WholePaper({ projectId }: { projectId: string }) {
       <h3>Write the whole paper</h3>
       <p className="lede">
         One prompt built from every card you have, in the groups you put them
-        in. What you have decided is carried through; the argument, the
-        sections and what each one claims are worked out from the passages
-        themselves and marked as proposals.
+        in. Your groups are what sets the paper going — not a set to be
+        exhausted. What you have decided is carried through; the rest is worked
+        out from the passages and marked as proposals.
       </p>
+
+      <div className="chips" style={{ marginBottom: "0.75rem" }}>
+        <button
+          className="chip"
+          aria-pressed={mode === "draft"}
+          onClick={() => setMode("draft")}
+        >
+          write the paper
+        </button>
+        <button
+          className="chip"
+          aria-pressed={mode === "assess"}
+          onClick={() => setMode("assess")}
+        >
+          tell me what this can answer
+        </button>
+      </div>
+
+      {mode === "draft" && (
+        <div className="chips" style={{ marginBottom: "0.75rem" }}>
+          {(["model", "quote", "ideas"] as const).map((q) => (
+            <button
+              key={q}
+              className="chip"
+              aria-pressed={quoting === q}
+              onClick={() => setQuoting(q)}
+            >
+              {QUOTING_LABEL[q]}
+            </button>
+          ))}
+        </div>
+      )}
 
       <p className="note-actions">
         <button className="button" disabled={build.isPending} onClick={() => build.mutate()}>
-          {build.isPending ? "Building…" : "Build the prompt"}
+          {build.isPending
+            ? "Building…"
+            : mode === "draft"
+              ? "Build the prompt"
+              : "Build the reading"}
         </button>
         {drafts.data?.length ? (
           <span className="meta">

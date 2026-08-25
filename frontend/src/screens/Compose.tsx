@@ -301,9 +301,21 @@ export default function Compose({ project }: { project: Project }) {
         behind what has not. Citekeys rather than author-year strings, an
         appendix naming which parts a model drafted, and every gap left open.
       </p>
+      <p className="lede">
+        The drafting task is written into the top of the file, so handing the
+        file to a chat works on its own — material with no task is read and
+        reported on, which is reasonable and not what you wanted.
+      </p>
       <p className="note-actions">
         <a className="button quiet" href={api.paperUrl(project.id)} download="paper.md">
           Download paper.md
+        </a>
+        <a
+          className="button quiet"
+          href={`${api.paperUrl(project.id)}?instructions=false`}
+          download="paper.md"
+        >
+          …without the task, for reading
         </a>
       </p>
     </div>
