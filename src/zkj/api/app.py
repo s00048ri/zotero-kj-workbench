@@ -16,7 +16,13 @@ from ..config import settings
 from ..zotero import ZoteroClient, ZoteroError, ZoteroForbidden
 from ..zotero.reader import read_subtree
 from ..zotero.tree import CollectionTree
-from . import routes_cards, routes_groups, routes_projects, routes_writes
+from . import (
+    routes_cards,
+    routes_compose,
+    routes_groups,
+    routes_projects,
+    routes_writes,
+)
 from .deps import get_client, zotero_error_handler
 from .schemas import CollectionOut, CollectionPreview, ConnectionStatus
 
@@ -31,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(routes_cards.router)
     app.include_router(routes_writes.router)
     app.include_router(routes_groups.router)
+    app.include_router(routes_compose.router)
 
     @app.get("/api/status", response_model=ConnectionStatus)
     def status(client: ZoteroClient = Depends(get_client)) -> ConnectionStatus:
