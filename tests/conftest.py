@@ -249,6 +249,17 @@ class FakeZotero:
         if path == "/api/users/0/items":
             if params.get("itemType") == "annotation":
                 return self._json(self.data["annotations"], request)
+            if params.get("itemType"):
+                # A library-wide query by type, which is how the real API
+                # answers and how attachments are found without walking a tree.
+                wanted = params["itemType"]
+                found = [
+                    payload
+                    for pool in self.data["children"].values()
+                    for payload in pool
+                    if payload.get("data", payload).get("itemType") == wanted
+                ]
+                return self._json(found, request)
             return httpx.Response(
                 200, json=[],
                 headers={**self.headers, "Last-Modified-Version": "42"},

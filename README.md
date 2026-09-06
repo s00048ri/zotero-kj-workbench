@@ -21,8 +21,16 @@ reference implementation, not something to port line by line.
 uv venv --python 3.12
 uv pip install -e ".[dev]"
 cd frontend && npm install && npm run build && cd ..
+.venv/bin/python -m zkj doctor   # check this machine first
 .venv/bin/python -m zkj          # opens http://127.0.0.1:8420/
 ```
+
+`doctor` answers the questions the test suite cannot, because the suite runs
+against a fixture and these are facts about your machine: whether Zotero is
+answering, whether it is new enough to accept notes, whether your attachments'
+`file://` URLs resolve to files that are really there, and whether this
+filesystem makes the links the staging folder is built from. It reads only —
+it writes nothing into Zotero. Each failure comes with what to do about it.
 
 The frontend builds into `src/zkj/api/web/dist`, which FastAPI serves from the
 same port — one process, no CORS. Without a build the app still runs and serves
@@ -61,6 +69,7 @@ src/zkj/writes.py   holding a Zotero write key inside Zotero's rules
 src/zkj/materialize.py  cards into notes, and taking a batch back
 src/zkj/annotate.py your own note on a passage, kept in step with Zotero
 src/zkj/notebooklm.py what goes into a notebook, and the link that comes back
+src/zkj/doctor.py   what a fixture cannot answer: this Zotero, this disk
 src/zkj/groups.py   the collections you filed cards into, and their labels
 src/zkj/structure.py  your outline against your evidence
 src/zkj/compose.py  question, claims, sections, and what each card does
@@ -125,6 +134,34 @@ Nothing carried back from a notebook can become a card, and nothing in it is
 evidence. That is what keeps this out of the loop below: a notebook is for
 deciding what to read and what to ask, which is upstream of highlighting, not
 a substitute for it.
+
+## The first run, end to end
+
+Everything below is done once, and after that the loop takes over.
+
+1. **`python -m zkj doctor`.** Fix anything it flags before going further —
+   most first-run trouble is one of the four things it checks.
+2. **Start it**, and on the Projects screen point it at the Zotero collection
+   your sources live in. It reads the subtree and turns your highlights into
+   cards. Nothing is written back yet.
+3. **Cards screen**: check that the passages are yours and that their page
+   numbers look right. A locator marked estimated is a guess and says so.
+4. **NotebookLM screen**, and pick a scope — the whole project to start with.
+   Copy the three blocks in order: your passages, then the sources reachable
+   by link, then, if there are files with neither, press *Gather them into one
+   folder* and upload from there.
+5. **Make the notebook** at notebook.google.com, paste those in, and copy its
+   address back into the *Address* field here.
+6. **Write the links into Zotero.** Zotero asks for permission the first time;
+   choose **Always Allow**, or it asks again for every batch and only allows
+   five dialogs a minute. Then look at the item in Zotero — the note should be
+   there with a link you can click.
+7. **Ask the notebook for something** — a briefing doc, a study guide, a
+   timeline. Paste anything worth keeping back on this screen, and file it in
+   Zotero if you want it beside the evidence.
+
+If step 6 or 7 wrote something you did not want, the Project screen lists
+every batch this tool has written and takes any of them back whole.
 
 ## The loop
 
