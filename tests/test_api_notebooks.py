@@ -114,3 +114,23 @@ def test_a_notebook_for_an_unknown_source_is_refused(api):
         f"/api/projects/{pid}/notebooks", json={"url": URL, "source_id": "nope"}
     )
     assert response.status_code == 422
+
+
+def test_the_sources_list_names_them_the_way_the_researcher_would(api):
+    """The notebook scope picker reads this, and nothing else needs to."""
+    _fake, _conn, client, pid = api()
+    sources = client.get(f"/api/projects/{pid}/sources").json()
+    assert sources
+    assert all(s["id"] and s["zotero_item_key"] for s in sources)
+    assert any(s["citation"] for s in sources)
+
+
+def test_a_notebook_can_be_scoped_to_a_source_from_that_list(api):
+    fake, _conn, client, pid = api()
+    source = client.get(f"/api/projects/{pid}/sources").json()[0]
+    client.post(
+        f"/api/projects/{pid}/notebooks", json={"url": URL, "source_id": source["id"]}
+    )
+    client.post(f"/api/projects/{pid}/notebooks/links", json={})
+    note = next(iter(fake.created_items.values()))
+    assert note["parentItem"] == source["zotero_item_key"]

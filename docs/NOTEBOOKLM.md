@@ -22,7 +22,8 @@ that reading; this is the part of the document most likely to rot.
 account, a summary per attachment, kept in both places, one manual click
 acceptable. Read strictly, those answers pointed away from NotebookLM — a
 per-attachment summary is the one use it is not needed for — so `summarise.py`
-was built on the Claude path instead. That module stays and still works.
+was built on the Claude path instead. **It has since been deleted**: see the
+third pass.
 
 **2026-09-06, second pass.** The researcher said NotebookLM is the point, and
 asked for the notebook's link to go into the notes this tool creates, so that
@@ -50,6 +51,24 @@ it is supported:
 
 Nothing in that column is scraped, no cookie is borrowed, and nothing breaks
 when Google ships a release. What it costs is two pastes per notebook.
+
+**2026-09-06, third pass.** `summarise.py` deleted at the researcher's
+instruction, along with its table, its routes, its screen and its tests.
+NotebookLM is now the whole of the answer, and nothing in this repository
+sends a source to a model.
+
+That removal is worth recording rather than just doing, because it takes the
+project back to a line SPEC §0 draws and the first pass had bent: this tool
+does not read the literature for the researcher. It carries their selections
+somewhere they can be asked about, and carries the answers back. Where the
+reading happens is the researcher's business, and NotebookLM is where they
+have chosen to do it.
+
+Migration 005 created the summary table and has been deleted; 007 drops the
+table with `IF EXISTS`. The gap in the numbering is deliberate — renumbering
+006 down into it would be skipped by any database that had already applied
+005, which would then never get the notebook tables. `test_store.py` pins
+both paths.
 
 **What is deliberately not built:** the unofficial cookie clients of §3C and
 the DOM-driving extension of §3D. Both were judged and are still judged

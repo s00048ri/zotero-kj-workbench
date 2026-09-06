@@ -47,6 +47,41 @@ def test_migrations_are_applied_once(tmp_path):
     conn.close()
 
 
+def test_a_database_left_at_the_removed_migration_still_catches_up(tmp_path):
+    """Migration 005 created a `summary` table and has since been deleted,
+    leaving a gap in the numbering. A database that stopped at 005 must still
+    get the notebook tables from 006 and lose the summary table to 007 — which
+    is exactly why 006 was not renumbered down into the gap."""
+    path = tmp_path / "old.sqlite3"
+    conn = connect(path)
+    # wind it back to the state a researcher who ran only 005 would be in
+    conn.execute("DROP TABLE notebook_report")
+    conn.execute("DROP TABLE notebook")
+    conn.execute("CREATE TABLE summary (id TEXT PRIMARY KEY)")
+    conn.execute("PRAGMA user_version = 5")
+
+    assert migrate(conn) == 2
+
+    tables = {
+        r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    assert "summary" not in tables
+    assert {"notebook", "notebook_report"} <= tables
+    conn.close()
+
+
+def test_a_database_that_never_saw_it_migrates_just_as_cleanly(tmp_path):
+    """The drop tolerates the table's absence, so a fresh install is not a
+    special case."""
+    conn = connect(tmp_path / "fresh.sqlite3")
+    tables = {
+        r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    assert "summary" not in tables
+    assert {"notebook", "notebook_report"} <= tables
+    conn.close()
+
+
 def test_project_names_are_unique(db):
     project(db, "same")
     with pytest.raises(sqlite3.IntegrityError):

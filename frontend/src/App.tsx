@@ -4,7 +4,6 @@ import { ApiError, OFFLINE, api } from "./lib/api";
 import Connect from "./screens/Connect";
 import ProjectScreen from "./screens/Project";
 import Cards from "./screens/Cards";
-import Sources from "./screens/Sources";
 import Notebook from "./screens/Notebook";
 import Steps from "./screens/Steps";
 import Compose from "./screens/Compose";
@@ -15,7 +14,6 @@ type Screen =
   | "connect"
   | "project"
   | "cards"
-  | "sources"
   | "notebook"
   | "groups"
   | "structure"
@@ -96,14 +94,6 @@ export default function App() {
             onClick={() => setScreen("cards")}
           >
             Cards
-          </button>
-          <button
-            className="tab"
-            aria-current={screen === "sources" ? "page" : undefined}
-            disabled={!project}
-            onClick={() => setScreen("sources")}
-          >
-            Sources
           </button>
           <button
             className="tab"
@@ -198,7 +188,6 @@ export default function App() {
           ) : (
             <p className="spinner">Opening the project…</p>
           ))}
-        {screen === "sources" && project && <Sources project={project} />}
         {screen === "notebook" && project && <Notebook project={project} />}
         {screen === "groups" && project && (
           <Groups project={project} onGoToCards={() => setScreen("cards")} />

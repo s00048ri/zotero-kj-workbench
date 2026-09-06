@@ -1,4 +1,4 @@
-"""Projects: creating one, re-importing it, and reporting what is in it."""
+"""Projects: creating one, re-importing it, listing what is in it."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..cards import summary
 from ..importer import ProjectConflict, run_import
+from ..notebooklm import citation_of
 from ..progress import progress
 from ..zotero import ZoteroClient
 from ..zotero.tree import CollectionTree
@@ -164,3 +165,28 @@ def get_project(
         conn, row, path=_paths(client).get(row["root_collection_key"]),
         server_id=client.server_info().server_id,
     )
+
+
+@router.get("/{project_id}/sources")
+def list_sources(
+    project_id: str, conn: sqlite3.Connection = Depends(get_db)
+) -> list[dict[str, str | None]]:
+    """The sources in a project, named the way the researcher would name them.
+
+    Enough to pick one from a list — the NotebookLM screen scopes a notebook
+    to a source this way — and nothing more.
+    """
+    _fetch(conn, project_id)
+    return [
+        {
+            "id": row["id"],
+            "zotero_item_key": row["zotero_item_key"],
+            "title": row["title"],
+            "citation": citation_of(dict(row)),
+        }
+        for row in conn.execute(
+            "SELECT id, zotero_item_key, title, creators_short, year AS source_year, "
+            "title AS source_title FROM source WHERE project_id = ? ORDER BY title",
+            (project_id,),
+        )
+    ]

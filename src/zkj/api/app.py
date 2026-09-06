@@ -23,7 +23,6 @@ from . import (
     routes_llm,
     routes_notebooks,
     routes_projects,
-    routes_summaries,
     routes_writes,
 )
 from .deps import get_client, zotero_error_handler
@@ -42,7 +41,6 @@ def create_app() -> FastAPI:
     app.include_router(routes_groups.router)
     app.include_router(routes_compose.router)
     app.include_router(routes_llm.router)
-    app.include_router(routes_summaries.router)
     app.include_router(routes_notebooks.router)
 
     @app.get("/api/status", response_model=ConnectionStatus)

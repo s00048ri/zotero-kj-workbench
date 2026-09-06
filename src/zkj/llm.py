@@ -155,21 +155,6 @@ def send(prompt: str, *, effort: str = "high") -> LLMResult:
     Streamed, because a paper is long and a non-streaming request of this size
     hits the SDK's timeout rather than finishing.
     """
-    return send_content(prompt, effort=effort)
-
-
-def send_content(
-    content: str | list[dict[str, Any]],
-    *,
-    effort: str = "high",
-    max_tokens: int = MAX_TOKENS,
-) -> LLMResult:
-    """The same send, for a message that is not only text.
-
-    A summary request carries a PDF as a document block, so the content is a
-    list rather than a string. Everything else — credentials, streaming, the
-    error mapping, what a refusal means — is identical, and lives here once.
-    """
     state = availability()
     if not state.ready:
         raise LLMUnavailable(state)
@@ -185,10 +170,10 @@ def send_content(
     try:
         with client.messages.stream(
             model=MODEL,
-            max_tokens=max_tokens,
+            max_tokens=MAX_TOKENS,
             thinking={"type": "adaptive"},
             output_config={"effort": effort},
-            messages=[{"role": "user", "content": content}],
+            messages=[{"role": "user", "content": prompt}],
         ) as stream:
             message = stream.get_final_message()
     except anthropic.AuthenticationError as e:

@@ -60,7 +60,6 @@ src/zkj/cards.py    filters, search, and the counts worth showing
 src/zkj/writes.py   holding a Zotero write key inside Zotero's rules
 src/zkj/materialize.py  cards into notes, and taking a batch back
 src/zkj/annotate.py your own note on a passage, kept in step with Zotero
-src/zkj/summarise.py a machine summary of an attachment — never a card
 src/zkj/notebooklm.py what goes into a notebook, and the link that comes back
 src/zkj/groups.py   the collections you filed cards into, and their labels
 src/zkj/structure.py  your outline against your evidence
@@ -87,17 +86,14 @@ Only when you ask, and never a highlighted passage:
 * a note for each group label, filed in the collection it names;
 * your own comment on a highlight, if you write one — never over an existing
   comment without being asked twice;
-* a machine summary of an attachment, if you ask for one — as a child note of
-  the source item, marked as generated on its first line and tagged
-  `kj-summary`;
 * a note carrying a NotebookLM notebook's link, on the item it is about, or in
   `_KJ` when the notebook covers the whole project;
 * anything you paste back from a notebook, filed beside the evidence it read.
 
-Everything in the last three is tagged `kj-generated`, and the importer
-refuses any note carrying that tag. None of it can become a card, and a
-summary or a report can never reach `_KJ/Inbox` — a child note cannot belong
-to a collection at all, and the project-wide ones are filed one level up.
+The last two are tagged `kj-generated`, and the importer refuses any note
+carrying that tag. Neither can become a card, and neither can reach
+`_KJ/Inbox` — a note on an item cannot belong to a collection at all, and the
+project-wide ones are filed one level up.
 
 Every batch of notes is recorded and can be taken back whole, from the Project
 screen or straight after writing them.
@@ -125,27 +121,10 @@ Two pastes per notebook, and nothing that stops working when Google ships a
 release. What you ask the notebook for is between you and it, as often as you
 like.
 
-## Summaries, and what they are not
-
-The Sources screen will read a PDF and write a summary of it. That is for
-deciding whether something is worth your attention — upstream of highlighting,
-not a substitute for it. It is deliberately not one of the Steps, and three
-things keep it out of the loop:
-
-* a summary is stored in its own table, keyed to the attachment, where nothing
-  in the card pipeline can reach it;
-* the Zotero note it becomes hangs off the source item, which cannot be filed
-  into a collection — so it can never land in `_KJ/Inbox`, where the grouping
-  happens;
-* the importer refuses any note tagged `kj-summary`, so a re-import cannot turn
-  one into an idea card.
-
-It needs the same Anthropic credentials as the Compose screen, and it is off
-until those are there. Generating costs money and touches nothing; filing the
-summaries in Zotero is a separate ask, and every batch can be taken back whole.
-
-Why not NotebookLM, which is what this started as:
-[docs/NOTEBOOKLM.md](docs/NOTEBOOKLM.md).
+Nothing carried back from a notebook can become a card, and nothing in it is
+evidence. That is what keeps this out of the loop below: a notebook is for
+deciding what to read and what to ask, which is upstream of highlighting, not
+a substitute for it.
 
 ## The loop
 

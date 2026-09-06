@@ -47,8 +47,8 @@ export default function Notebook({ project }: { project: Project }) {
     queryFn: () => api.notebookBundle(project.id, scope || null),
   });
   const sources = useQuery({
-    queryKey: ["attachments", project.id],
-    queryFn: () => api.attachments(project.id),
+    queryKey: ["sources", project.id],
+    queryFn: () => api.sources(project.id),
   });
   const permission = useQuery({
     queryKey: ["write-permission"],
@@ -95,15 +95,8 @@ export default function Notebook({ project }: { project: Project }) {
   const unlinked = notebooks.filter((n) => !n.zotero_note_key);
   const prepared: NotebookBundle | undefined = bundle.data;
 
-  // One row per source, from the attachment list the Sources screen already
-  // reads — a source with no attachment can still have a notebook.
-  const sourceOptions = Array.from(
-    new Map(
-      (sources.data?.attachments ?? []).map((a) => [
-        a.source_id,
-        a.source_title || a.citation || a.source_id,
-      ]),
-    ),
+  const sourceOptions = (sources.data ?? []).map(
+    (s) => [s.id, s.title || s.citation || s.id] as const,
   );
 
   return (
@@ -421,7 +414,7 @@ function Kept({ projectId, onChange }: { projectId: string; onChange: () => void
         </p>
       )}
       {reports.map((report) => (
-        <div className="summary-block" key={report.id}>
+        <div className="report-block" key={report.id}>
           <p className="stamp">
             NotebookLM {KIND_LABELS[report.kind] ?? report.kind} — not your reading
           </p>
