@@ -773,3 +773,33 @@ h3 .meta { font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; 
 .draft-details { margin: 0.75rem 0; }
 .draft-details summary { cursor: pointer; font-size: 0.9rem; color: var(--graphite); }
 .draft-details .draft-read { margin-top: 0.6rem; max-height: 30rem; overflow: auto; }
+
+/* -- machine summaries --------------------------------------------------- */
+
+/* The design's one distinction is the source's words on a leaf against the
+ * researcher's own words on the inked margin. A machine summary is neither,
+ * and must not be able to pass for either: it sits directly on the board, in
+ * the chrome grey, inside a dashed rule that says provisional. */
+
+.sources-table { width: 100%; border-collapse: collapse; font-size: 0.9rem;
+  margin-bottom: 1rem; }
+.sources-table th { text-align: left; font-weight: 500; color: var(--graphite);
+  font-size: 0.8rem; text-transform: lowercase; letter-spacing: 0.02em;
+  padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--rule-strong); }
+.sources-table td { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--rule);
+  vertical-align: baseline; }
+.sources-table tr[data-sendable="false"] td { color: var(--graphite); }
+.sources-table td:first-child { width: 1.5rem; }
+
+.summary-block {
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  color: var(--graphite);
+}
+.summary-block strong { color: var(--ink); font-weight: 500; }
+/* Not the reading serif, and not the margin sans: this is nobody's voice. */
+.summary-block p { font-family: var(--sans); font-size: 0.92rem; }
+.summary-block .stamp { font-size: 0.78rem; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--graphite); margin: 0 0 0.4rem; }

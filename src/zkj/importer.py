@@ -39,10 +39,10 @@ from .zotero.models import (
     Note,
     Source,
 )
+from .zotero.notes import KJ_TAG, SUMMARY_TAG
 from .zotero.reader import SourceRecord, read_subtree
 from .zotero.tree import CollectionNode, CollectionTree
 
-KJ_TAG = "kj-card"
 INBOX_NAME = "Inbox"
 
 Progress = Callable[[str], None]
@@ -100,6 +100,7 @@ class ImportStats:
     locator_estimated: int = 0
     joined_highlights: int = 0
     own_notes_seen: int = 0
+    generated_notes_seen: int = 0
     placements_read: int = 0
     still_in_inbox: int = 0
     unknown_kj_notes: int = 0
@@ -500,6 +501,12 @@ class Importer:
     def _absorb_child_note(
         self, project_id: str, source_id: str, note: Note, prior: PriorStructure
     ) -> None:
+        if SUMMARY_TAG in note.tag_names:
+            # A machine summary this tool wrote. It is not the researcher's
+            # reading and must never become a card — that is the whole reason
+            # it is tagged apart from everything else.
+            self.stats.generated_notes_seen += 1
+            return
         text = html_to_text(note.note)
         if not text:
             self.stats.skipped_empty += 1
@@ -528,6 +535,9 @@ class Importer:
         tree: CollectionTree,
         collection_ids: dict[str, str],
     ) -> None:
+        if SUMMARY_TAG in note.tag_names:
+            self.stats.generated_notes_seen += 1
+            return
         if KJ_TAG in note.tag_names:
             # A note this tool created. Reading it back as a fresh idea would
             # duplicate the card it came from. Where the researcher has since

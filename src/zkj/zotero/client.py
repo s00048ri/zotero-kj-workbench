@@ -24,7 +24,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 import httpx
 
@@ -219,6 +222,24 @@ class ZoteroClient:
             return None
         text = resp.text.strip()
         return text or None
+
+    def file_path(self, attachment_key: str) -> Path | None:
+        """Where an attachment's file actually is on this disk.
+
+        The local API answers with a ``file://`` URL, percent-encoded, and on
+        Windows with a drive letter — so the conversion back to a path is
+        ``url2pathname``'s job, not string surgery on the prefix. A URL that
+        points at something no longer there returns None, because a moved or
+        never-downloaded file is a fact about the library, not a failure.
+        """
+        url = self.file_url(attachment_key)
+        if not url:
+            return None
+        parsed = urlparse(url)
+        if parsed.scheme != "file":
+            return None
+        path = Path(url2pathname(parsed.path))
+        return path if path.is_file() else None
 
     # -- writes ------------------------------------------------------------
 

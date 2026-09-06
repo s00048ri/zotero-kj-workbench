@@ -292,12 +292,24 @@ def revert(
             result.failures.append(str(e))
 
     if not result.failures:
-        marks = ", ".join("?" for _ in card_ids)
-        conn.execute(
-            f"UPDATE card SET zotero_note_key = NULL, materialized_at = NULL, "
-            f"kj_collection_keys_json = NULL, kj_path = NULL WHERE id IN ({marks})",
-            card_ids,
-        )
+        # A batch of summaries owns no cards, and `IN ()` is not SQL — so the
+        # unmarking is skipped rather than built from an empty list.
+        if card_ids:
+            marks = ", ".join("?" for _ in card_ids)
+            conn.execute(
+                f"UPDATE card SET zotero_note_key = NULL, materialized_at = NULL, "
+                f"kj_collection_keys_json = NULL, kj_path = NULL WHERE id IN ({marks})",
+                card_ids,
+            )
+        if keys:
+            # A summary whose note has just been deleted is unwritten again,
+            # and can be written afresh without being generated again.
+            note_marks = ", ".join("?" for _ in keys)
+            conn.execute(
+                f"UPDATE summary SET zotero_note_key = NULL, written_at = NULL "
+                f"WHERE zotero_note_key IN ({note_marks})",
+                keys,
+            )
         conn.execute(
             "UPDATE write_batch SET reverted_at = ? WHERE id = ?",
             (now_iso(), batch_id),

@@ -425,6 +425,73 @@ function query(params: Record<string, string | number | boolean | null | undefin
   return q ? `?${q}` : "";
 }
 
+/* Machine summaries. Not cards, and deliberately not shaped like them. */
+
+export interface AttachmentRow {
+  id: string;
+  attachment_key: string;
+  content_type: string | null;
+  title: string | null;
+  filename: string | null;
+  link_mode: string | null;
+  source_id: string;
+  source_key: string;
+  source_title: string | null;
+  citation: string;
+  sendable: boolean;
+  summary_id: string | null;
+  summarised_at: string | null;
+  summary_model: string | null;
+  summary_note_key: string | null;
+}
+
+export interface AttachmentsPage {
+  attachments: AttachmentRow[];
+  sendable: number;
+  summarised: number;
+  llm: LlmStatus;
+}
+
+export interface Summary {
+  id: string;
+  attachment_id: string;
+  attachment_title: string | null;
+  attachment_key: string;
+  source_title: string | null;
+  citation: string;
+  created_at: string;
+  model: string | null;
+  text: string;
+  input_tokens: number;
+  output_tokens: number;
+  truncated: number;
+  zotero_note_key: string | null;
+  written_at: string | null;
+}
+
+export interface SummariseAttempt {
+  attachment_key: string;
+  title: string;
+  ok: boolean;
+  summary_id: string | null;
+  reason: string | null;
+  cost_usd: number;
+}
+
+export interface SummariseResult {
+  summarised: number;
+  failed: number;
+  cost_usd: number;
+  attempts: SummariseAttempt[];
+}
+
+export interface SummaryNotesResult {
+  batch_id: string | null;
+  created: number;
+  failures: { summary_id: string; error: string }[];
+  dialogs_shown: number;
+}
+
 export const api = {
   status: () => request<ConnectionStatus>("/api/status"),
   collections: () => request<Collection[]>("/api/collections"),
@@ -639,6 +706,29 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  attachments: (projectId: string) =>
+    request<AttachmentsPage>(`/api/projects/${projectId}/attachments`),
+  summaries: (projectId: string) =>
+    request<Summary[]>(`/api/projects/${projectId}/summaries`),
+  summarise: (
+    projectId: string,
+    body: { attachment_ids: string[]; effort?: string; replace?: boolean },
+  ) =>
+    request<SummariseResult>(`/api/projects/${projectId}/summaries`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  writeSummaryNotes: (projectId: string, summary_ids?: string[]) =>
+    request<SummaryNotesResult>(`/api/projects/${projectId}/summaries/notes`, {
+      method: "POST",
+      body: JSON.stringify({ summary_ids: summary_ids ?? null }),
+    }),
+  forgetSummary: (projectId: string, summaryId: string) =>
+    request<{ forgotten: string }>(
+      `/api/projects/${projectId}/summaries/${summaryId}`,
+      { method: "DELETE" },
+    ),
 
   paperUrl: (projectId: string) => `/api/projects/${projectId}/paper.md`,
 };

@@ -60,6 +60,7 @@ src/zkj/cards.py    filters, search, and the counts worth showing
 src/zkj/writes.py   holding a Zotero write key inside Zotero's rules
 src/zkj/materialize.py  cards into notes, and taking a batch back
 src/zkj/annotate.py your own note on a passage, kept in step with Zotero
+src/zkj/summarise.py a machine summary of an attachment — never a card
 src/zkj/groups.py   the collections you filed cards into, and their labels
 src/zkj/structure.py  your outline against your evidence
 src/zkj/compose.py  question, claims, sections, and what each card does
@@ -84,10 +85,37 @@ Only when you ask, and never a highlighted passage:
 * the `_KJ` and `_KJ/Inbox` collections themselves, if they do not exist;
 * a note for each group label, filed in the collection it names;
 * your own comment on a highlight, if you write one — never over an existing
-  comment without being asked twice.
+  comment without being asked twice;
+* a machine summary of an attachment, if you ask for one — as a child note of
+  the source item, marked as generated on its first line and tagged
+  `kj-summary`. A child note cannot belong to a collection, so a summary can
+  never reach `_KJ/Inbox`, and the importer refuses to read one back as a
+  card.
 
 Every batch of notes is recorded and can be taken back whole, from the Project
 screen or straight after writing them.
+
+## Summaries, and what they are not
+
+The Sources screen will read a PDF and write a summary of it. That is for
+deciding whether something is worth your attention — upstream of highlighting,
+not a substitute for it. It is deliberately not one of the Steps, and three
+things keep it out of the loop:
+
+* a summary is stored in its own table, keyed to the attachment, where nothing
+  in the card pipeline can reach it;
+* the Zotero note it becomes hangs off the source item, which cannot be filed
+  into a collection — so it can never land in `_KJ/Inbox`, where the grouping
+  happens;
+* the importer refuses any note tagged `kj-summary`, so a re-import cannot turn
+  one into an idea card.
+
+It needs the same Anthropic credentials as the Compose screen, and it is off
+until those are there. Generating costs money and touches nothing; filing the
+summaries in Zotero is a separate ask, and every batch can be taken back whole.
+
+Why not NotebookLM, which is what this started as:
+[docs/NOTEBOOKLM.md](docs/NOTEBOOKLM.md).
 
 ## The loop
 

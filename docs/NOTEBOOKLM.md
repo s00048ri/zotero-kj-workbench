@@ -16,6 +16,26 @@ this is the part of the document most likely to rot.
 
 ---
 
+## 0. Decided, 2026-09-06
+
+The researcher answered the four questions in §6: **a personal Google
+account**, **a summary per attachment**, **kept in both Zotero and this app**,
+and **one manual click is acceptable**.
+
+Those answers settle it, and not in NotebookLM's favour. A per-attachment
+summary is the one thing on the list that NotebookLM is *not* needed for — its
+own answer to §6.2 says as much — and a personal account is exactly the case
+with no supported door. So layer 1 of §5 is what got built, on the Claude path
+that was already wired: `src/zkj/summarise.py`, one summary per attachment,
+stored here and filed in Zotero as a marked child note of the source item.
+
+NotebookLM is not wired to anything. It remains worth building only if the
+second use in §6.2 ever becomes the wanted one — a notebook per project, asked
+questions across everything in it. Everything below is the reasoning that led
+here, and stands as the record of why the door was left shut.
+
+---
+
 ## 1. What NotebookLM is, in September 2026
 
 * It was renamed **Gemini Notebook** in July 2026. The old name still
