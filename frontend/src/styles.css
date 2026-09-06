@@ -803,3 +803,16 @@ h3 .meta { font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; 
 .summary-block p { font-family: var(--sans); font-size: 0.92rem; }
 .summary-block .stamp { font-size: 0.78rem; letter-spacing: 0.04em;
   text-transform: uppercase; color: var(--graphite); margin: 0 0 0.4rem; }
+
+/* One block of material to carry across by hand, into a tool this program
+ * cannot reach. Plain, on the board, because it is in transit — neither the
+ * source's words nor the researcher's yet. */
+.carry-block {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.9rem;
+  margin-bottom: 0.9rem;
+}
+.carry-block .field { width: 100%; margin-top: 0.5rem; font-family: var(--mono);
+  font-size: 0.82rem; }
+.carry-block .teaching { margin: 0.35rem 0 0; }

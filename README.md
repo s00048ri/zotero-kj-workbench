@@ -61,6 +61,7 @@ src/zkj/writes.py   holding a Zotero write key inside Zotero's rules
 src/zkj/materialize.py  cards into notes, and taking a batch back
 src/zkj/annotate.py your own note on a passage, kept in step with Zotero
 src/zkj/summarise.py a machine summary of an attachment — never a card
+src/zkj/notebooklm.py what goes into a notebook, and the link that comes back
 src/zkj/groups.py   the collections you filed cards into, and their labels
 src/zkj/structure.py  your outline against your evidence
 src/zkj/compose.py  question, claims, sections, and what each card does
@@ -88,12 +89,41 @@ Only when you ask, and never a highlighted passage:
   comment without being asked twice;
 * a machine summary of an attachment, if you ask for one — as a child note of
   the source item, marked as generated on its first line and tagged
-  `kj-summary`. A child note cannot belong to a collection, so a summary can
-  never reach `_KJ/Inbox`, and the importer refuses to read one back as a
-  card.
+  `kj-summary`;
+* a note carrying a NotebookLM notebook's link, on the item it is about, or in
+  `_KJ` when the notebook covers the whole project;
+* anything you paste back from a notebook, filed beside the evidence it read.
+
+Everything in the last three is tagged `kj-generated`, and the importer
+refuses any note carrying that tag. None of it can become a card, and a
+summary or a report can never reach `_KJ/Inbox` — a child note cannot belong
+to a collection at all, and the project-wide ones are filed one level up.
 
 Every batch of notes is recorded and can be taken back whole, from the Project
 screen or straight after writing them.
+
+## NotebookLM
+
+The NotebookLM screen is a bridge with you in the middle of it. NotebookLM has
+no interface a program can use — see [docs/NOTEBOOKLM.md](docs/NOTEBOOKLM.md)
+for what was checked and when — so the workbench does the parts around it:
+
+1. **What to put in.** Your sources' DOIs and URLs as one block to paste into
+   NotebookLM's bulk source box; the files with neither gathered into a single
+   folder, named by citekey, to select all of; and — the one thing no crawler
+   can fetch — **your own selected passages** as a single pasted text source.
+2. **The address back.** You make the notebook and paste its address here. One
+   per project, or one per source, or both.
+3. **The link into Zotero.** That address is written into a note on the item
+   itself, and into every card note created afterwards, so the notebook is one
+   click from wherever you are reading.
+4. **What came back.** A briefing doc, a study guide, a timeline, a mind map
+   read out — paste it back and the workbench keeps it and can file it in
+   Zotero, marked as NotebookLM's work.
+
+Two pastes per notebook, and nothing that stops working when Google ships a
+release. What you ask the notebook for is between you and it, as often as you
+like.
 
 ## Summaries, and what they are not
 

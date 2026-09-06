@@ -1,38 +1,62 @@
-# Sending attachments to NotebookLM — feasibility
+# NotebookLM, and how this workbench meets it
 
 **Question:** can this workbench push a Zotero attachment into NotebookLM and
-get a summary back, automatically? If the desktop side is too hard, would a
-browser extension on the web version do?
+get summaries back? If the desktop side is too hard, would a browser extension
+on the web version do?
 
-**Short answer:** yes, and the Zotero half is already solved. The NotebookLM
-half has no supported door for a personal Google account, so the choice is
-which unsupported or adjacent door to use, and how much of the product to
-stake on it. The recommendation is at the end: build the summary loop on an
-API that will still exist next month, and treat NotebookLM as a hand-off
-rather than a dependency.
+**Answer, as built:** NotebookLM stays, and the carrying across is the
+researcher's. The workbench prepares what goes into a notebook, holds the
+address that comes back, writes that address into Zotero where the reading
+happens, and keeps whatever the notebook produced. It never talks to Google,
+because for a personal account there is nothing to talk to — §1 — and a
+research tool cannot depend on an interface with no version number.
 
-Researched 2026-09-05. Every dated claim below is from that day's reading;
-this is the part of the document most likely to rot.
+Researched 2026-09-05, revised 2026-09-06. Every dated claim below is from
+that reading; this is the part of the document most likely to rot.
 
 ---
 
-## 0. Decided, 2026-09-06
+## 0. Decided
 
-The researcher answered the four questions in §6: **a personal Google
-account**, **a summary per attachment**, **kept in both Zotero and this app**,
-and **one manual click is acceptable**.
+**2026-09-06, first pass.** The researcher answered §6: a personal Google
+account, a summary per attachment, kept in both places, one manual click
+acceptable. Read strictly, those answers pointed away from NotebookLM — a
+per-attachment summary is the one use it is not needed for — so `summarise.py`
+was built on the Claude path instead. That module stays and still works.
 
-Those answers settle it, and not in NotebookLM's favour. A per-attachment
-summary is the one thing on the list that NotebookLM is *not* needed for — its
-own answer to §6.2 says as much — and a personal account is exactly the case
-with no supported door. So layer 1 of §5 is what got built, on the Claude path
-that was already wired: `src/zkj/summarise.py`, one summary per attachment,
-stored here and filed in Zotero as a marked child note of the source item.
+**2026-09-06, second pass.** The researcher said NotebookLM is the point, and
+asked for the notebook's link to go into the notes this tool creates, so that
+many kinds of summary become available. That is a different and better ask,
+and it changes the answer, because it stops needing an API at all:
 
-NotebookLM is not wired to anything. It remains worth building only if the
-second use in §6.2 ever becomes the wanted one — a notebook per project, asked
-questions across everything in it. Everything below is the reasoning that led
-here, and stands as the record of why the door was left shut.
+> The valuable thing about NotebookLM is not that it can summarise a PDF. It
+> is the Studio — briefing doc, study guide, FAQ, timeline, mind map, audio
+> and video overview, flashcards, quizzes, slide decks — every one of them
+> grounded in the same set of sources, asked for as often as you like. None of
+> that needs to be automated. It needs to be **reachable**, from where the
+> researcher is reading.
+
+So the design is a bridge with a person in the middle of it, and every part of
+it is supported:
+
+| Step | Who | How |
+|---|---|---|
+| Gather the sources | workbench | `notebooklm.bundle()` — DOIs and URLs from Zotero as one bulk-pasteable block; local files with neither gathered into one folder to select all of; **the researcher's own selected passages as one pasted text source** |
+| Make the notebook, paste it in | researcher | NotebookLM takes a list of URLs at once, multiple files at once, and pasted text as a source |
+| Paste the address back | researcher | one field |
+| Write the link into Zotero | workbench | a note on the item, and a link in every card note written afterwards |
+| Ask for whatever summary | researcher | NotebookLM's Studio, as many times as they like |
+| Keep what came back | workbench | pasted back, stored, and filed in Zotero as NotebookLM's work |
+
+Nothing in that column is scraped, no cookie is borrowed, and nothing breaks
+when Google ships a release. What it costs is two pastes per notebook.
+
+**What is deliberately not built:** the unofficial cookie clients of §3C and
+the DOM-driving extension of §3D. Both were judged and are still judged
+breakable and grey; §5 layer 3 remains where they would go if the two pastes
+ever become intolerable.
+
+Everything below is the reasoning that got here.
 
 ---
 
@@ -192,7 +216,7 @@ Concretely: summaries land as their own kind of note, marked as generated,
 outside the `_KJ/Inbox` flow, and the importer skips them the way it would
 skip any note it wrote itself.
 
-## 5. Recommendation
+## 5. Recommendation (as written on 2026-09-05; §0 records what was built)
 
 Three layers, in this order, each useful alone.
 
@@ -222,7 +246,7 @@ plugin, layer 3's extension is the plugin-shaped piece, and a native Zotero 8
 plugin becomes a nice-to-have trigger for a loop that already works — worth
 building when there is something to trigger, not before.
 
-## 6. Open questions for the researcher
+## 6. Open questions for the researcher (answered — see §0)
 
 1. Google account type — personal, or Workspace? This picks between doors B
    and D more than anything else does.

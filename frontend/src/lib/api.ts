@@ -492,6 +492,67 @@ export interface SummaryNotesResult {
   dialogs_shown: number;
 }
 
+/* NotebookLM. The workbench prepares what goes in, holds the link that comes
+ * back, and keeps whatever the notebook produced. It never talks to Google. */
+
+export interface Notebook {
+  id: string;
+  project_id: string;
+  source_id: string | null;
+  source_title: string | null;
+  source_key: string | null;
+  title: string | null;
+  url: string;
+  created_at: string;
+  zotero_note_key: string | null;
+  linked_at: string | null;
+  reports: number;
+}
+
+export interface NotebookBundle {
+  scope: "project" | "source";
+  scope_name: string;
+  urls: { title: string; url: string }[];
+  urls_text: string;
+  without_url: { title: string; filename: string; path: string; source_id: string }[];
+  cards_title: string;
+  cards_text: string;
+  card_count: number;
+  staged_dir: string | null;
+  source_limit_note: string;
+}
+
+export interface NotebookReport {
+  id: string;
+  notebook_id: string;
+  kind: string;
+  title: string | null;
+  text: string;
+  created_at: string;
+  zotero_note_key: string | null;
+  written_at: string | null;
+}
+
+export interface NotebooksPage {
+  notebooks: Notebook[];
+  reports: NotebookReport[];
+  report_kinds: string[];
+}
+
+export interface StageResult {
+  folder: string;
+  staged: number;
+  remaining: number;
+  failures: { title: string; error: string }[];
+}
+
+export interface NotebookWriteResult {
+  batch_id: string | null;
+  created: number;
+  failures: { error: string }[];
+  dialogs_shown: number;
+}
+
 export const api = {
   status: () => request<ConnectionStatus>("/api/status"),
   collections: () => request<Collection[]>("/api/collections"),
@@ -728,6 +789,57 @@ export const api = {
     request<{ forgotten: string }>(
       `/api/projects/${projectId}/summaries/${summaryId}`,
       { method: "DELETE" },
+    ),
+
+  notebooks: (projectId: string) =>
+    request<NotebooksPage>(`/api/projects/${projectId}/notebooks`),
+  notebookBundle: (projectId: string, sourceId?: string | null) =>
+    request<NotebookBundle>(
+      `/api/projects/${projectId}/notebooks/bundle` +
+        (sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ""),
+    ),
+  stageForNotebook: (projectId: string, sourceId?: string | null) =>
+    request<StageResult>(
+      `/api/projects/${projectId}/notebooks/stage` +
+        (sourceId ? `?source_id=${encodeURIComponent(sourceId)}` : ""),
+      { method: "POST" },
+    ),
+  addNotebook: (
+    projectId: string,
+    body: { url: string; title?: string | null; source_id?: string | null },
+  ) =>
+    request<Notebook>(`/api/projects/${projectId}/notebooks`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  forgetNotebook: (projectId: string, notebookId: string) =>
+    request<{ forgotten: string }>(
+      `/api/projects/${projectId}/notebooks/${notebookId}`,
+      { method: "DELETE" },
+    ),
+  writeNotebookLinks: (projectId: string, notebook_ids?: string[]) =>
+    request<NotebookWriteResult>(`/api/projects/${projectId}/notebooks/links`, {
+      method: "POST",
+      body: JSON.stringify({ notebook_ids: notebook_ids ?? null }),
+    }),
+  addNotebookReport: (
+    projectId: string,
+    notebookId: string,
+    body: { kind: string; title?: string | null; text: string },
+  ) =>
+    request<NotebookReport>(
+      `/api/projects/${projectId}/notebooks/${notebookId}/reports`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  forgetNotebookReport: (projectId: string, reportId: string) =>
+    request<{ forgotten: string }>(
+      `/api/projects/${projectId}/notebooks/reports/${reportId}`,
+      { method: "DELETE" },
+    ),
+  writeNotebookReports: (projectId: string, report_ids?: string[]) =>
+    request<NotebookWriteResult>(
+      `/api/projects/${projectId}/notebooks/reports/notes`,
+      { method: "POST", body: JSON.stringify({ report_ids: report_ids ?? null }) },
     ),
 
   paperUrl: (projectId: string) => `/api/projects/${projectId}/paper.md`,

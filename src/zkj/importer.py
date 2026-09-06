@@ -39,7 +39,7 @@ from .zotero.models import (
     Note,
     Source,
 )
-from .zotero.notes import KJ_TAG, SUMMARY_TAG
+from .zotero.notes import GENERATED_TAG, KJ_TAG
 from .zotero.reader import SourceRecord, read_subtree
 from .zotero.tree import CollectionNode, CollectionTree
 
@@ -501,10 +501,11 @@ class Importer:
     def _absorb_child_note(
         self, project_id: str, source_id: str, note: Note, prior: PriorStructure
     ) -> None:
-        if SUMMARY_TAG in note.tag_names:
-            # A machine summary this tool wrote. It is not the researcher's
-            # reading and must never become a card — that is the whole reason
-            # it is tagged apart from everything else.
+        if GENERATED_TAG in note.tag_names:
+            # Something this tool generated or carried across — a machine
+            # summary, a notebook link, a NotebookLM report. None of it is the
+            # researcher's reading, and none of it may become a card. One tag
+            # covers every such kind, including ones added later.
             self.stats.generated_notes_seen += 1
             return
         text = html_to_text(note.note)
@@ -535,7 +536,7 @@ class Importer:
         tree: CollectionTree,
         collection_ids: dict[str, str],
     ) -> None:
-        if SUMMARY_TAG in note.tag_names:
+        if GENERATED_TAG in note.tag_names:
             self.stats.generated_notes_seen += 1
             return
         if KJ_TAG in note.tag_names:

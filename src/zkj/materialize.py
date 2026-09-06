@@ -125,6 +125,16 @@ def ensure_kj_collections(
     return kj_key, inbox_key
 
 
+def _notebook_urls(conn: sqlite3.Connection, project_id: str) -> dict[str | None, str]:
+    """Notebook links by source, with the project's notebook under None."""
+    return {
+        row["source_id"]: row["url"]
+        for row in conn.execute(
+            "SELECT source_id, url FROM notebook WHERE project_id = ?", (project_id,)
+        )
+    }
+
+
 def _create_collection(
     client: ZoteroClient, session: WriteSession, name: str, parent_key: str
 ) -> str:
@@ -193,6 +203,11 @@ def materialize(
         )
     }
 
+    # The notebook covering each card, so its note can link straight to it.
+    # A source with its own notebook wins over the project's; neither existing
+    # is the ordinary case and costs nothing.
+    notebook_urls = _notebook_urls(conn, project["id"])
+
     written_keys: list[str] = []
     written_cards: list[str] = []
 
@@ -208,6 +223,8 @@ def materialize(
                     collection_key=collection_key,
                     citation=citation_of(card),
                     parent_human_id=parents.get(card["parent_card_id"]),
+                    notebook_url=notebook_urls.get(card["source_id"])
+                    or notebook_urls.get(None),
                 )
             )
         response = session.run(lambda key, p=payload: client.create_items(p, key))
