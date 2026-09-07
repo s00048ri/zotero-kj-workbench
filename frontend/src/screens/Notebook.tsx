@@ -101,6 +101,16 @@ export default function Notebook({ project }: { project: Project }) {
 
   return (
     <div className="column">
+      {permission.data && !permission.data.available && (
+        <p className="notice">
+          {permission.data.message} Everything up to the notebook still works —
+          gather the sources below, make the notebook, and keep its address
+          here. What needs a newer Zotero is only the last part: writing the
+          link into your library, and filing what the notebook made beside the
+          evidence it read.
+        </p>
+      )}
+
       <p className="teaching">
         NotebookLM has no interface a program can use, so the carrying across is
         yours: paste what is below into a notebook, then paste the notebook’s
@@ -245,7 +255,9 @@ export default function Notebook({ project }: { project: Project }) {
                 >
                   {link.isPending
                     ? "Writing into Zotero…"
-                    : "Write the links into Zotero"}
+                    : !permission.data?.available
+                      ? "This Zotero cannot be written to"
+                      : "Write the links into Zotero"}
                 </button>
               </p>
               {link.isError && (
@@ -418,7 +430,9 @@ function Kept({ projectId, onChange }: { projectId: string; onChange: () => void
           >
             {file.isPending
               ? "Writing into Zotero…"
-              : `File ${unfiled.length} in Zotero, beside their sources`}
+              : !permission.data?.available
+                ? "This Zotero cannot be written to"
+                : `File ${unfiled.length} in Zotero, beside their sources`}
           </button>
         </p>
       )}

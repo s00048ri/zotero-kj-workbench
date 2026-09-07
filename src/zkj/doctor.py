@@ -93,8 +93,11 @@ def _writes(client: ZoteroClient) -> Check:
             "Zotero will accept notes",
             False,
             "No Zotero-Server-ID header, so this Zotero is older than 10.",
-            "Upgrade to Zotero 10 or newer. Everything else here still works "
-            "read-only.",
+            "Upgrade to Zotero 10 or newer. Until then everything up to the "
+            "notebook works — importing cards, gathering what goes into a "
+            "notebook, keeping its address — but the link cannot be written "
+            "into your library, which is the part that makes the notebook "
+            "reachable from your reading.",
         )
     return Check(
         "Zotero will accept notes",

@@ -126,3 +126,14 @@ def test_a_clean_report_says_what_it_does_not_cover(here):
     assert "in order" in text
     # the one thing it cannot prove is said out loud rather than implied
     assert "only provable by uploading one" in text
+
+
+def test_the_old_zotero_remedy_says_what_is_actually_lost(here):
+    """A researcher on Zotero 9 can do everything except the part the feature
+    exists for. Saying "read-only" alone leaves them to find that out."""
+    check = by_name(doctor.run(FakeZotero(headers={"Zotero-API-Version": "3"}).client()))[
+        "Zotero will accept notes"
+    ]
+    assert check.ok is False
+    assert "Upgrade to Zotero 10" in check.remedy
+    assert "the link cannot be written" in check.remedy
