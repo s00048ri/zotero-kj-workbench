@@ -38,10 +38,11 @@ from .cards import CARD_SELECT, citation_of
 from .citekeys import citekeys
 from .config import settings
 from .store import insert, now_iso
+from .text import escape_html
 from .writes import WriteSession, parse_write_result
-from .zotero import ZoteroClient
+from .zotero import ZoteroClient, ZoteroError
 from .zotero.client import WRITE_BATCH
-from .zotero.notes import notebook_note_payload, report_note_payload
+from .zotero.notes import NOTEBOOK_TAG, notebook_note_payload, report_note_payload
 
 # NotebookLM moved from notebooklm.google.com to notebook.google.com and
 # redirects the old host. Both are accepted and neither is rewritten: a link
@@ -111,6 +112,8 @@ class Bundle:
 class LinkResult:
     batch_id: str | None = None
     created: int = 0
+    # notes already in Zotero — written on another machine and synced here
+    adopted: int = 0
     failures: list[dict[str, str]] = field(default_factory=list)
     dialogs_shown: int = 0
 
@@ -118,6 +121,7 @@ class LinkResult:
         return {
             "batch_id": self.batch_id,
             "created": self.created,
+            "adopted": self.adopted,
             "failures": self.failures,
             "dialogs_shown": self.dialogs_shown,
         }
@@ -456,6 +460,22 @@ def link_into_zotero(
     if any(n["source_id"] is None for n in rows):
         kj_key, _inbox_key = ensure_kj_collections(conn, client, session, project)
 
+    # A note written on another machine has already synced here. Adopting it
+    # is the difference between one link note and two saying the same thing.
+    adopted = []
+    for row in list(rows):
+        existing = existing_link(client, row, kj_key)
+        if existing:
+            conn.execute(
+                "UPDATE notebook SET zotero_note_key = ?, linked_at = ? WHERE id = ?",
+                (existing, now_iso(), row["id"]),
+            )
+            rows.remove(row)
+            adopted.append(row["id"])
+    result.adopted = len(adopted)
+    if not rows:
+        return result
+
     written_keys: list[str] = []
     for start in range(0, len(rows), WRITE_BATCH):
         batch = rows[start : start + WRITE_BATCH]
@@ -498,6 +518,47 @@ def link_into_zotero(
         )
     result.dialogs_shown = session.dialogs_shown
     return result
+
+
+def existing_link(
+    client: ZoteroClient,
+    notebook: dict[str, Any],
+    kj_key: str | None,
+) -> str | None:
+    """A link note for this notebook that is already in Zotero.
+
+    Two machines sharing one synced library each keep their own workbench
+    database, so the second one has no record of a notebook the first
+    registered — but Zotero has already synced the note. Without this, the
+    second machine writes a duplicate saying exactly the same thing.
+
+    The match is on the URL in the note, not on any identifier of ours: the
+    row ids differ between databases, and the URL is what the note is *for*.
+    """
+    where = notebook["source_key"] or kj_key
+    if not where:
+        return None
+    try:
+        payloads = (
+            client.children(notebook["source_key"])
+            if notebook["source_key"]
+            else client.collection_items_top(kj_key)
+        )
+    except ZoteroError:
+        # Not being able to look is not a reason to refuse to write; a
+        # duplicate is recoverable and a missing link is not.
+        return None
+
+    for payload in payloads:
+        data = payload.get("data", payload) or {}
+        if data.get("itemType") != "note":
+            continue
+        tags = {t.get("tag", "") for t in data.get("tags") or []}
+        if NOTEBOOK_TAG not in tags:
+            continue
+        if f'href="{escape_html(notebook["url"])}"' in (data.get("note") or ""):
+            return data.get("key")
+    return None
 
 
 def _contents(

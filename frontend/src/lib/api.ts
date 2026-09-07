@@ -489,6 +489,7 @@ export interface StageResult {
 export interface NotebookWriteResult {
   batch_id: string | null;
   created: number;
+  adopted: number;
   failures: { error: string }[];
   dialogs_shown: number;
 }

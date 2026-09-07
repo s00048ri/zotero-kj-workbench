@@ -197,6 +197,34 @@ Everything below is done once, and after that the loop takes over.
 If step 6 or 7 wrote something you did not want, the Project screen lists
 every batch this tool has written and takes any of them back whole.
 
+## Two machines, one library
+
+Zotero syncs; this workbench does not. Its database is per-machine
+(`%APPDATA%\zkj` on Windows, `~/Library/Application Support/zkj` on macOS), so
+each machine imports its own cards from the same synced library and keeps its
+own record of what it wrote. That is deliberate — the two Zotero databases have
+different server IDs, and a project imported from one refuses to be written
+into the other rather than attaching cards to the wrong library.
+
+What follows from it:
+
+* **Import on each machine.** Cards, groups and labels are read back out of
+  Zotero, which is the shared part, so the second machine reconstructs them
+  rather than needing them copied.
+* **Register the notebook on each machine.** The notebook's address is not
+  synced. Paste it into the NotebookLM screen on both.
+* **The link note is not written twice.** Before writing, the workbench looks
+  for a `kj-notebook` note on the same item carrying the same URL. A note the
+  other machine wrote has already synced, so it is adopted instead — the
+  screen says how many.
+* **Notes from the other machine are not misread.** A card note that this
+  database has no card for is counted as an unknown note and left alone, never
+  turned into a new card.
+
+Pasted-back reports are per-machine and are not adopted: two machines pasting
+the same briefing doc means two notes, because a report is something you chose
+to keep rather than something the tool wrote.
+
 ## The loop
 
 ```

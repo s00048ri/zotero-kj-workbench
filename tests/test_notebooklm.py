@@ -322,3 +322,86 @@ def test_forgetting_a_notebook_leaves_zotero_and_google_alone(setup):
     assert len(fake.created_items) == 1 and not fake.deleted
     # the report went with it
     assert conn.execute("SELECT count(*) FROM notebook_report").fetchone()[0] == 0
+
+
+# -- two machines, one synced library -------------------------------------
+
+
+def test_a_link_note_synced_from_another_machine_is_adopted_not_duplicated(setup):
+    """Two machines share one Zotero library but each keep their own workbench
+    database. The second one has no record of a notebook the first registered
+    — and Zotero has already synced its note. Writing a second one saying the
+    same thing is the wart this closes."""
+    fake, conn, client, project, session = setup()
+    source = conn.execute("SELECT * FROM source LIMIT 1").fetchone()
+    notebooklm.register(conn, project["id"], URL, source_id=source["id"])
+    first = notebooklm.link_into_zotero(conn, client, session, project)
+    note_key = conn.execute("SELECT zotero_note_key FROM notebook").fetchone()[0]
+    # Zotero now reports it as a child of the item, as a sync would
+    fake.data["children"].setdefault(source["zotero_item_key"], []).append(
+        {"data": {**fake.created_items[note_key], "itemType": "note"}}
+    )
+
+    # the other machine: same library, same notebook, empty database
+    other = connect(":memory:")
+    run_import(other, client, "p", "ROOT")
+    other_project = dict(
+        other.execute("SELECT * FROM project").fetchone()
+    )
+    other_source = other.execute(
+        "SELECT id FROM source WHERE zotero_item_key = ?", (source["zotero_item_key"],)
+    ).fetchone()[0]
+    notebooklm.register(other, other_project["id"], URL, source_id=other_source)
+
+    second = notebooklm.link_into_zotero(other, client, session, other_project)
+
+    assert first.created == 1 and first.adopted == 0
+    assert second.created == 0 and second.adopted == 1
+    assert second.batch_id is None  # nothing was written, so nothing to take back
+    assert len(fake.created_items) == 1
+    # and the second machine now points at the note that already exists
+    assert other.execute("SELECT zotero_note_key FROM notebook").fetchone()[0] == note_key
+    other.close()
+
+
+def test_a_different_notebook_on_the_same_item_still_gets_its_own_note(setup):
+    """Adoption matches on the URL, so a second notebook about the same source
+    is a second notebook, not a duplicate."""
+    fake, conn, client, project, session = setup()
+    source = conn.execute("SELECT * FROM source LIMIT 1").fetchone()
+    notebooklm.register(conn, project["id"], URL, source_id=source["id"])
+    notebooklm.link_into_zotero(conn, client, session, project)
+    note_key = conn.execute("SELECT zotero_note_key FROM notebook").fetchone()[0]
+    fake.data["children"].setdefault(source["zotero_item_key"], []).append(
+        {"data": {**fake.created_items[note_key], "itemType": "note"}}
+    )
+
+    notebooklm.register(
+        conn,
+        project["id"],
+        "https://notebook.google.com/notebook/adifferentone",
+        source_id=source["id"],
+    )
+    again = notebooklm.link_into_zotero(conn, client, session, project)
+
+    assert again.created == 1 and again.adopted == 0
+    assert len(fake.created_items) == 2
+
+
+def test_a_project_notebook_is_adopted_from_the_kj_collection(setup):
+    fake, conn, client, project, session = setup()
+    notebooklm.register(conn, project["id"], URL)
+    notebooklm.link_into_zotero(conn, client, session, project)
+    note_key = conn.execute("SELECT zotero_note_key FROM notebook").fetchone()[0]
+    kj_key = conn.execute(
+        "SELECT kj_root_key FROM project WHERE id = ?", (project["id"],)
+    ).fetchone()[0]
+    fake.data["top"].setdefault(kj_key, []).append(
+        {"data": {**fake.created_items[note_key], "itemType": "note"}}
+    )
+
+    conn.execute("UPDATE notebook SET zotero_note_key = NULL, linked_at = NULL")
+    again = notebooklm.link_into_zotero(conn, client, session, project)
+
+    assert again.created == 0 and again.adopted == 1
+    assert len(fake.created_items) == 1

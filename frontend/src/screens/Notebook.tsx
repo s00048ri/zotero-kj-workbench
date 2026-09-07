@@ -251,6 +251,15 @@ export default function Notebook({ project }: { project: Project }) {
               {link.isError && (
                 <p className="notice bad">{(link.error as Error).message}</p>
               )}
+              {link.data && (
+                <p className="meta" style={{ marginTop: "0.5rem" }}>
+                  {link.data.created} written.
+                  {link.data.adopted > 0 &&
+                    ` ${link.data.adopted} were already in Zotero — written on` +
+                      " another machine and synced here, so they were adopted" +
+                      " rather than written twice."}
+                </p>
+              )}
             </div>
           )}
 
