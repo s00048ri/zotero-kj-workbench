@@ -38,7 +38,7 @@ syntax, so it tries to load a module called `.venv` and fails with
 `CouldNotAutoLoadModule`. The leading `.\` is what makes it a path.
 
 ```powershell
-py -3.12 -m venv .venv
+py -3 -m venv .venv
 .\.venv\Scripts\python -m pip install -e .
 cd frontend
 npm install
@@ -48,8 +48,17 @@ cd ..
 .\.venv\Scripts\python -m zkj
 ```
 
-If `py -3.12` reports no such version, `py -3` takes whatever you have —
-anything from 3.10 up is fine.
+`py -3` takes the newest Python you have, and anything from 3.10 up is fine —
+so do not ask for a version by number unless you have a reason to. If it
+answers **No suitable Python runtime found**, the launcher has nothing to
+give: `py -0` lists what it can see, and an empty list means Python is not
+installed. Install it from [python.org](https://www.python.org/downloads/)
+with **Add python.exe to PATH** ticked, then open a new PowerShell — the old
+one keeps the old PATH.
+
+Every line after the first depends on `.venv` existing. If the first line
+fails, the rest fail with `CommandNotFoundException`, which is that failure
+echoing rather than a new problem.
 
 On Windows `doctor` will most likely report the staging folder as built *by
 copying*: making a symbolic link needs Developer Mode or an elevated prompt,
