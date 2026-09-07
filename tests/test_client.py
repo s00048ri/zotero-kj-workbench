@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 import pytest
 
 from tests.conftest import FakeZotero
@@ -122,6 +124,45 @@ def test_creators_and_year_degrade_honestly(client):
 def test_file_url_returns_none_when_there_is_no_file(client):
     assert client.file_url("ATT2").startswith("file://")
     assert client.file_url("ATT1") is None
+
+
+def test_a_file_url_becomes_a_path_that_opens(client, tmp_path, fake_zotero):
+    pdf = tmp_path / "a paper.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    fake_zotero.data["files"] = {"ATT2": pdf.as_uri()}
+
+    assert client.file_path("ATT2") == pdf
+    # a URL Zotero gives for a file that is no longer there is not an error:
+    # a synced library has plenty of those, and they are simply left out
+    fake_zotero.data["files"] = {"ATT2": (tmp_path / "gone.pdf").as_uri()}
+    assert client.file_path("ATT2") is None
+
+
+@pytest.mark.parametrize(
+    "url,expected",
+    [
+        (
+            "file:///C:/Users/x/Zotero/storage/ABCD1234/paper.pdf",
+            r"C:\Users\x\Zotero\storage\ABCD1234\paper.pdf",
+        ),
+        (
+            "file:///C:/Users/x/Zotero/storage/ABCD1234/Some%20Paper.pdf",
+            r"C:\Users\x\Zotero\storage\ABCD1234\Some Paper.pdf",
+        ),
+        (
+            "file:///C:/Users/x/Zotero/storage/ABCD1234/%E7%94%B0%E4%B8%AD2024.pdf",
+            "C:\\Users\\x\\Zotero\\storage\\ABCD1234\\田中2024.pdf",
+        ),
+    ],
+)
+def test_a_windows_file_url_decodes_to_a_windows_path(url, expected):
+    """The drive letter, the spaces and the non-ASCII names are all in the one
+    conversion, and all three go wrong differently. `nturl2path` is exactly
+    what `url2pathname` becomes on Windows, so this pins the contract from any
+    platform rather than only from the one nobody tests on."""
+    import nturl2path
+
+    assert nturl2path.url2pathname(urlparse(url).path) == expected
 
 
 def test_base_url_is_configurable():

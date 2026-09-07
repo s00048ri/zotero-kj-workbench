@@ -13,17 +13,45 @@ reference implementation, not something to port line by line.
   Settings → Advanced → “Allow other applications on this computer to
   communicate with Zotero” enabled. Without it every read is a 403.
 * Zotero 10 or newer to write notes back. Older versions work read-only.
-* Python 3.10+. This repo uses [uv](https://docs.astral.sh/uv/).
+* Python 3.10+ and Node 18+. [uv](https://docs.astral.sh/uv/) if you have
+  it; plain `venv` and `pip` work just as well and need nothing installed.
 
 ## Running
 
+**macOS and Linux**
+
 ```
-uv venv --python 3.12
-uv pip install -e ".[dev]"
+python3 -m venv .venv            # or: uv venv --python 3.12
+.venv/bin/python -m pip install -e .
 cd frontend && npm install && npm run build && cd ..
 .venv/bin/python -m zkj doctor   # check this machine first
 .venv/bin/python -m zkj          # opens http://127.0.0.1:8420/
 ```
+
+**Windows (PowerShell)**
+
+Windows PowerShell 5.1 — the blue one, still the default — has no `&&`, so
+these are separate lines rather than a chain. The interpreter is
+`.venv\Scripts\python.exe`, not `.venv/bin/python`.
+
+```powershell
+py -3.12 -m venv .venv
+.venv\Scripts\python -m pip install -e .
+cd frontend
+npm install
+npm run build
+cd ..
+.venv\Scripts\python -m zkj doctor
+.venv\Scripts\python -m zkj
+```
+
+If `py -3.12` reports no such version, `py -3` takes whatever you have —
+anything from 3.10 up is fine.
+
+On Windows `doctor` will most likely report the staging folder as built *by
+copying*: making a symbolic link needs Developer Mode or an elevated prompt,
+and without one the workbench copies instead. That works — it just costs disk
+for as long as a staged folder sits there.
 
 `doctor` answers the questions the test suite cannot, because the suite runs
 against a fixture and these are facts about your machine: whether Zotero is
@@ -41,7 +69,11 @@ port 8420, so the Python side keeps running unchanged.
 
 ## Tests
 
+The test tools are a dependency group rather than an extra, so they install on
+their own line — `pip install -e ".[dev]"` will not find them.
+
 ```
+.venv/bin/python -m pip install pytest ruff
 .venv/bin/python -m pytest
 .venv/bin/ruff check src tests
 ```
@@ -81,8 +113,10 @@ frontend/           React + TypeScript; builds into src/zkj/api/web/dist
 
 ## Where the database lives
 
-`~/Library/Application Support/zkj/zkj.sqlite3` on macOS, or wherever `ZKJ_DB`
-points.
+`~/Library/Application Support/zkj/zkj.sqlite3` on macOS,
+`%APPDATA%\zkj\zkj.sqlite3` on Windows, `~/.local/share/zkj/zkj.sqlite3` on
+Linux — or wherever `ZKJ_DB` points. `python -m zkj doctor` prints the path
+it is actually using.
 
 ## What it writes into Zotero
 
