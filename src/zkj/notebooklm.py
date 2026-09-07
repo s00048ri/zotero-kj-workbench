@@ -54,6 +54,12 @@ NOTEBOOK_PATH = re.compile(r"^/notebook/([A-Za-z0-9_-]{8,})/?$")
 # What NotebookLM's Studio makes. The list is the researcher's vocabulary, not
 # a switch in any code path — a kind this app has never heard of is still
 # storable, because Google adds to this faster than anyone can track.
+# NotebookLM takes 500,000 words in one source. The passages block is the
+# one that could approach it, so it is measured — and never trimmed: half
+# a researcher's selections pasted without saying so is worse than a paste
+# they were told to split.
+SOURCE_WORD_LIMIT = 500_000
+
 REPORT_KINDS = (
     "briefing",
     "study_guide",
@@ -83,12 +89,20 @@ class Bundle:
     cards_title: str = ""
     cards_text: str = ""
     card_count: int = 0
-    staged_dir: str | None = None
 
     @property
     def urls_text(self) -> str:
         """One per line — how NotebookLM's bulk paste wants them."""
         return "\n".join(u["url"] for u in self.urls)
+
+    @property
+    def cards_words(self) -> int:
+        return len(self.cards_text.split())
+
+    @property
+    def cards_over_limit(self) -> bool:
+        """Too large for one NotebookLM source, so the paste would be refused."""
+        return self.cards_words > SOURCE_WORD_LIMIT
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -100,7 +114,9 @@ class Bundle:
             "cards_title": self.cards_title,
             "cards_text": self.cards_text,
             "card_count": self.card_count,
-            "staged_dir": self.staged_dir,
+            "cards_words": self.cards_words,
+            "cards_over_limit": self.cards_over_limit,
+            "source_word_limit": SOURCE_WORD_LIMIT,
             "source_limit_note": (
                 "A free notebook holds 50 sources; Plus 100, Pro 300. The "
                 "passages below count as one source however many they are."

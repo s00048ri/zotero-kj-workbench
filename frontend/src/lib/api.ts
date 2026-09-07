@@ -458,7 +458,9 @@ export interface NotebookBundle {
   cards_title: string;
   cards_text: string;
   card_count: number;
-  staged_dir: string | null;
+  cards_words: number;
+  cards_over_limit: boolean;
+  source_word_limit: number;
   source_limit_note: string;
 }
 

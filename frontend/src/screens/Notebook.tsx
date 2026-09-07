@@ -144,11 +144,21 @@ export default function Notebook({ project }: { project: Project }) {
       {prepared && (
         <>
           <CopyBlock
-            label={`Your own passages (${prepared.card_count})`}
+            label={`Your own passages (${prepared.card_count}, about ${prepared.cards_words.toLocaleString()} words)`}
             hint="Paste as a “Copied text” source. This is the one thing no crawler can fetch, and the only reason the notebook knows what you found worth keeping."
             text={prepared.cards_text}
             rows={10}
           />
+          {prepared.cards_over_limit && (
+            <p className="notice bad">
+              That is past the{" "}
+              {prepared.source_word_limit.toLocaleString()} words NotebookLM
+              takes in one source, so the paste would be refused. Nothing has
+              been left out here — scope the notebook to a single source above
+              and make several instead, which is the split you would want
+              anyway.
+            </p>
+          )}
           <CopyBlock
             label={`Sources reachable by link (${prepared.urls.length})`}
             hint="Paste the whole block into Add sources → Website. NotebookLM takes a list at once, one per line."

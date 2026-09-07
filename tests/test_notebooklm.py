@@ -405,3 +405,28 @@ def test_a_project_notebook_is_adopted_from_the_kj_collection(setup):
 
     assert again.created == 0 and again.adopted == 1
     assert len(fake.created_items) == 1
+
+
+def test_the_passages_block_is_measured_and_never_trimmed(setup):
+    """NotebookLM refuses a source over 500,000 words. Half a researcher's
+    selections pasted without saying so is worse than being told to split."""
+    _fake, conn, client, project, _s = setup()
+    prepared = notebooklm.bundle(conn, client, project)
+
+    assert prepared.cards_words == len(prepared.cards_text.split())
+    assert prepared.cards_over_limit is False
+
+    body = prepared.as_dict()
+    assert body["source_word_limit"] == notebooklm.SOURCE_WORD_LIMIT
+    assert body["cards_words"] > 0
+
+
+def test_an_oversized_passages_block_says_so_rather_than_being_cut(setup, monkeypatch):
+    _fake, conn, client, project, _s = setup()
+    monkeypatch.setattr(notebooklm, "SOURCE_WORD_LIMIT", 5)
+    prepared = notebooklm.bundle(conn, client, project)
+
+    assert prepared.cards_over_limit is True
+    # every passage is still there — the researcher decides how to split
+    assert prepared.card_count > 0
+    assert prepared.cards_text.count("##") >= prepared.card_count
