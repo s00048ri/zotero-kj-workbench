@@ -137,3 +137,56 @@ def test_the_old_zotero_remedy_says_what_is_actually_lost(here):
     assert check.ok is False
     assert "Upgrade to Zotero 10" in check.remedy
     assert "the link cannot be written" in check.remedy
+
+
+# -- starting up -----------------------------------------------------------
+
+
+def test_the_browser_waits_for_the_port_rather_than_a_timer():
+    """Opening on a timer showed ERR_CONNECTION_REFUSED whenever the server
+    took longer to start than the timer waited — which a cold Windows start
+    reliably does. The browser must be behind the server, not ahead of it."""
+    import socket
+    import threading
+
+    from zkj import __main__ as cli
+
+    opened: list[str] = []
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    port = listener.getsockname()[1]
+
+    def start_listening_late():
+        import time
+
+        time.sleep(0.4)
+        listener.listen(1)
+
+    threading.Thread(target=start_listening_late, daemon=True).start()
+    cli.webbrowser.open = opened.append  # type: ignore[assignment]
+    try:
+        cli._open_when_listening("http://x", "127.0.0.1", port)
+    finally:
+        listener.close()
+
+    assert opened == ["http://x"]
+
+
+def test_a_server_that_never_answers_says_so_instead_of_opening(capsys, monkeypatch):
+    import socket
+
+    from zkj import __main__ as cli
+
+    opened: list[str] = []
+    monkeypatch.setattr(cli.webbrowser, "open", opened.append)
+    monkeypatch.setattr(cli, "STARTUP_WAIT", 0.3)
+    # a port nothing is listening on
+    free = socket.socket()
+    free.bind(("127.0.0.1", 0))
+    port = free.getsockname()[1]
+    free.close()
+
+    cli._open_when_listening("http://x", "127.0.0.1", port)
+
+    assert opened == []
+    assert "has not answered" in capsys.readouterr().out
