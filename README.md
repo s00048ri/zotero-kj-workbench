@@ -30,19 +30,22 @@ cd frontend && npm install && npm run build && cd ..
 
 **Windows (PowerShell)**
 
+Two things about PowerShell, both of which will bite before Python does.
 Windows PowerShell 5.1 — the blue one, still the default — has no `&&`, so
-these are separate lines rather than a chain. The interpreter is
-`.venv\Scripts\python.exe`, not `.venv/bin/python`.
+these are separate lines rather than a chain. And a bare `.venv\Scripts\python`
+is not a path to PowerShell: `Name\Command` is its module-qualified command
+syntax, so it tries to load a module called `.venv` and fails with
+`CouldNotAutoLoadModule`. The leading `.\` is what makes it a path.
 
 ```powershell
 py -3.12 -m venv .venv
-.venv\Scripts\python -m pip install -e .
+.\.venv\Scripts\python -m pip install -e .
 cd frontend
 npm install
 npm run build
 cd ..
-.venv\Scripts\python -m zkj doctor
-.venv\Scripts\python -m zkj
+.\.venv\Scripts\python -m zkj doctor
+.\.venv\Scripts\python -m zkj
 ```
 
 If `py -3.12` reports no such version, `py -3` takes whatever you have —
