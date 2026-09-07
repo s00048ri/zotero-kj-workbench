@@ -13,15 +13,16 @@ reference implementation, not something to port line by line.
   Settings → Advanced → “Allow other applications on this computer to
   communicate with Zotero” enabled. Without it every read is a 403.
 * Zotero 10 or newer to write notes back. Older versions work read-only.
-* Python 3.10+ and Node 18+. [uv](https://docs.astral.sh/uv/) if you have
-  it; plain `venv` and `pip` work just as well and need nothing installed.
+* Python 3.10–3.13 and Node 18+. [uv](https://docs.astral.sh/uv/) if you
+  have it; plain `venv` and `pip` work just as well and need nothing
+  installed. 3.14 is not vouched for — see below.
 
 ## Running
 
 **macOS and Linux**
 
 ```
-python3 -m venv .venv            # or: uv venv --python 3.12
+python3 -m venv .venv            # or: uv venv --python 3.13
 .venv/bin/python -m pip install -e .
 cd frontend && npm install && npm run build && cd ..
 .venv/bin/python -m zkj doctor   # check this machine first
@@ -38,7 +39,7 @@ syntax, so it tries to load a module called `.venv` and fails with
 `CouldNotAutoLoadModule`. The leading `.\` is what makes it a path.
 
 ```powershell
-py -3 -m venv .venv
+py -3.13 -m venv .venv
 .\.venv\Scripts\python -m pip install -e .
 cd frontend
 npm install
@@ -48,13 +49,16 @@ cd ..
 .\.venv\Scripts\python -m zkj
 ```
 
-`py -3` takes the newest Python you have, and anything from 3.10 up is fine —
-so do not ask for a version by number unless you have a reason to. If it
-answers **No suitable Python runtime found**, the launcher has nothing to
-give: `py -0` lists what it can see, and an empty list means Python is not
-installed. Install it from [python.org](https://www.python.org/downloads/)
-with **Add python.exe to PATH** ticked, then open a new PowerShell — the old
-one keeps the old PATH.
+The version is named on purpose. The suite passes on 3.13, and on a 3.14
+pre-release it does not get as far as running: pydantic 2.13.5 calls
+`typing._eval_type` with an argument that build does not take, and every model
+in the app fails to construct. Whether a 3.14 release fixes that is not known
+here — 3.13 is, so use 3.13 and lose nothing.
+
+`py -0` lists what the launcher can see. If 3.13 is not among them, take the
+newest that is not 3.14, or install 3.13 from
+[python.org](https://www.python.org/downloads/) with **Add python.exe to PATH**
+ticked and open a new PowerShell — the old one keeps the old PATH.
 
 Every line after the first depends on `.venv` existing. If the first line
 fails, the rest fail with `CommandNotFoundException`, which is that failure
