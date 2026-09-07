@@ -15,7 +15,6 @@ import webbrowser
 
 from .config import settings
 
-
 # Long enough for a cold start on a slow machine — importing the app pulls in
 # scikit-learn and numpy, which is seconds rather than milliseconds.
 STARTUP_WAIT = 90.0
