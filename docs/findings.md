@@ -53,8 +53,9 @@ the `blob_pending` branch of ItemPayload can wait for a case that actually
 needs it — a Track B running against a *remote* Zotero, which is the Web API
 fallback of §8.3, not the local one.
 
-Settle it with `bash docs/phase0/verify.sh` on the machine running Zotero; it
-records raw headers for exactly this.
+Settle it on the machine running Zotero — `bash docs/phase0/verify.sh`, or
+`.\docs\phase0\verify.ps1` on Windows. Both record raw headers for exactly
+this and read only.
 
 ### V1c. Browser-shaped requests — **FROM DOCUMENTATION**
 
@@ -159,8 +160,8 @@ Out of v1 scope by the spec. Needs a logged-in browser, like V4.
 
 ## What is needed before M1
 
-1. `bash docs/phase0/verify.sh` on the machine running Zotero → settles V1b
-   and V1c's curl half.
+1. `verify.sh` / `verify.ps1` on the machine running Zotero → settles V1b
+   and V1c's curl half. See [running-locally.md](running-locally.md).
 2. A throwaway notebook and one `notebooklm login` → settles V2's behaviour.
 3. V3 and V4 come with their own milestones and can wait.
 
