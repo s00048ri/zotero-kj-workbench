@@ -190,3 +190,48 @@ def test_a_server_that_never_answers_says_so_instead_of_opening(capsys, monkeypa
 
     assert opened == []
     assert "has not answered" in capsys.readouterr().out
+
+
+def test_a_browser_that_will_not_open_says_the_address_instead(capsys, monkeypatch):
+    """`webbrowser.open` reports failure by returning False, and on a machine
+    with no browser it can raise. Throwing that away leaves the researcher
+    with a running server and no idea where it is."""
+    import socket
+
+    from zkj import __main__ as cli
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    try:
+        monkeypatch.setattr(cli.webbrowser, "open", lambda _url: False)
+        cli._open_when_listening("http://here", "127.0.0.1", port)
+        said = capsys.readouterr().out
+        assert "Could not open a browser" in said and "http://here" in said
+
+        def boom(_url):
+            raise RuntimeError("no display")
+
+        monkeypatch.setattr(cli.webbrowser, "open", boom)
+        cli._open_when_listening("http://here", "127.0.0.1", port)
+        assert "http://here" in capsys.readouterr().out
+    finally:
+        listener.close()
+
+
+def test_a_browser_that_opens_says_nothing_extra(capsys, monkeypatch):
+    import socket
+
+    from zkj import __main__ as cli
+
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    try:
+        monkeypatch.setattr(cli.webbrowser, "open", lambda _url: True)
+        cli._open_when_listening("http://here", "127.0.0.1", port)
+        assert capsys.readouterr().out == ""
+    finally:
+        listener.close()

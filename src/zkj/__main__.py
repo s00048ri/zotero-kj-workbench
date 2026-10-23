@@ -33,11 +33,22 @@ def _open_when_listening(url: str, host: str, port: int) -> None:
     target = "127.0.0.1" if host in ("0.0.0.0", "::") else host
     while time.monotonic() < deadline:
         try:
-            with socket.create_connection((target, port), timeout=0.5):
-                webbrowser.open(url)
-                return
+            connection = socket.create_connection((target, port), timeout=0.5)
         except OSError:
             time.sleep(0.25)
+            continue
+        connection.close()
+        # `open` reports whether it managed to launch anything, and on a
+        # machine with no browser it can raise instead. Either way the server
+        # is up and the researcher only needs the address — so say it, rather
+        # than leaving them with a running server and a silence.
+        try:
+            opened = webbrowser.open(url)
+        except Exception:
+            opened = False
+        if not opened:
+            print(f"\nCould not open a browser. It is running — go to {url}")
+        return
     print(
         f"The server has not answered on port {port} after "
         f"{STARTUP_WAIT:.0f} seconds. Whatever it printed above says why; "
