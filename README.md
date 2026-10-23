@@ -46,8 +46,15 @@ npm install
 npm run build
 cd ..
 .\.venv\Scripts\python -m zkj doctor
-.\.venv\Scripts\python -m zkj
+.\start.ps1
 ```
+
+`start.ps1` is the last line's replacement once it is set up. It checks the
+four things that make the browser say `ERR_CONNECTION_REFUSED` — no
+virtualenv, the package not installed in it, port 8420 already held by an
+earlier run, no built interface — names whichever it is, and then starts the
+server. All four look identical from the browser, which is why they are
+checked from the terminal instead.
 
 The version is named on purpose. The suite passes on 3.13, and on a 3.14
 pre-release it does not get as far as running: pydantic 2.13.5 calls
